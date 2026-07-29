@@ -1,0 +1,13 @@
+{
+  "name": "idea-radar",
+  "short_name": "idea-radar",
+  "description": "매일 아침 신규 앱·웹서비스 훑어보기",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#0e1420",
+  "theme_color": "#0e1420",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
