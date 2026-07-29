@@ -152,10 +152,10 @@ collect (항상 성공 종료) → commit/push (if: always()) → report (실패
 
 ### 4.2 언제 job을 빨간불로 만드나
 
-- 어떤 소스의 `consecutiveFailures >= 2` 이거나, **모든 소스가 실패**할 때만 `exit 1`.
-- 1회성 실패는 `::warning::` + manifest 기록으로만 남기고 job은 성공으로 끝낸다.
+- 어떤 소스가 `consecutiveFailures >= 2` **이면서** `lastSuccessAt`이 40시간 넘게 지났거나(성공 이력이 아예 없거나), **모든 소스가 실패**할 때만 `exit 1`.
+- 1회성·반나절 실패는 `::warning::` + manifest 기록으로만 남기고 job은 성공으로 끝낸다.
 
-왜: 소스 7개 중 하나가 가끔 실패하는 건 정상이다. 매일 빨간 X가 오면 2주 만에 알림을 무시하게 되고, 그때부터 알림은 없는 것과 같다.
+왜: 소스 7개 중 하나가 가끔 실패하는 건 정상이다. 매일 빨간 X가 오면 2주 만에 알림을 무시하게 되고, 그때부터 알림은 없는 것과 같다. 40시간 기준은 실행 빈도와 무관하게 "이틀 넘게 성공 없음"을 뜻한다 — 하루 2회 실행에서 연속 실패 횟수만 세면 소스 사이트의 반나절 점검만으로 빨간불이 떠서 알림이 소음이 된다.
 
 ### 4.3 healthCheck — 조용한 0건 막기
 
@@ -209,11 +209,13 @@ push 실패 시 ①로
 on:
   schedule:
     - cron: '37 19 * * *'   # 04:37 KST
+    - cron: '7 3 * * *'     # 12:07 KST
   workflow_dispatch:
 ```
 
-- **비정각 분(37)을 쓴다.** 정각은 전 세계 cron이 몰려 지연이 가장 크다.
+- **비정각 분(37, 7)을 쓴다.** 정각은 전 세계 cron이 몰려 지연이 가장 크다.
 - 04:37 KST는 아침에 보기 1시간 반 전이다. 30분 밀려도 6시엔 데이터가 있다.
+- 12:07 KST는 점심 직후 보기용. 오전에 올라온 국내 소스 신규를 잡는다. 실행이 늘어도 신규 판정은 seen 인덱스 기준이라 중복이 생기지 않는다(§2.1, §3).
 - `permissions: contents: write, pages: write, id-token: write`
 - `concurrency: { group: collect, cancel-in-progress: false }`
 - `timeout-minutes: 10`

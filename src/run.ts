@@ -34,6 +34,8 @@ const NEW_COUNT_WARN: Partial<Record<SourceKey, number>> = {
   showhn: 400,
 }
 
+const ALERT_STALL_MS = 40 * 3600 * 1000
+
 type RunError = { kind: ErrorKind; status?: number; message: string }
 
 type SourceRun = {
@@ -216,7 +218,9 @@ function report(runs: SourceRun[], newCounts: Map<SourceKey, number> | undefined
   const failed = runs.filter((r) => !r.ok).map((r) => r.key)
   const attempted = runs.map((r) => r.key)
   const alerts = manifest
-    ? (Object.entries(manifest.sources) as [SourceKey, SourceStatus][]).filter(([, s]) => s.consecutiveFailures >= 2).map(([k]) => k)
+    ? (Object.entries(manifest.sources) as [SourceKey, SourceStatus][])
+        .filter(([, s]) => s.consecutiveFailures >= 2 && (s.lastSuccessAt === null || Date.parse(s.lastSuccessAt) < Date.now() - ALERT_STALL_MS))
+        .map(([k]) => k)
     : failed
   ghOutput('failed_sources', failed.join(','))
   ghOutput('alert_sources', alerts.join(','))
