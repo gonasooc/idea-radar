@@ -11,6 +11,7 @@ const SOURCES = {
 };
 const LS_SEEN = 'idea-radar.lastSeenAt';
 const LS_CACHE = 'idea-radar.cache';
+const LS_THEME = 'idea-radar.theme';
 const SS_SCROLL = 'idea-radar.scrollY';
 const SS_SHOWHN = 'idea-radar.showhnOpen';
 const AUTO_SEEN_MS = 120000;
@@ -28,6 +29,7 @@ const els = {
   showhnBlock: $('showhnBlock'),
   showhnToggle: $('showhnToggle'),
   showhnList: $('showhnList'),
+  themeToggle: $('themeToggle'),
   footNote: $('footNote'),
 };
 
@@ -306,6 +308,28 @@ function render() {
   else renderFeed();
 }
 
+function currentTheme() {
+  const forced = document.documentElement.dataset.theme;
+  if (forced) return forced;
+  return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function syncTheme() {
+  const theme = currentTheme();
+  els.themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
+  const color = theme === 'dark' ? '#0e1420' : '#f6f7f9';
+  if (document.documentElement.dataset.theme) {
+    document.querySelectorAll('meta[name="theme-color"]').forEach((m) => { m.content = color; });
+  }
+}
+
+function toggleTheme() {
+  const next = currentTheme() === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  lsSet(LS_THEME, next);
+  syncTheme();
+}
+
 function scheduleAutoSeen() {
   let timer = null;
   const arm = () => {
@@ -364,6 +388,9 @@ function init() {
     ssSet(SS_SCROLL, '0');
     ssSet(SS_SHOWHN, '0');
   });
+  els.themeToggle.addEventListener('click', toggleTheme);
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', syncTheme);
+  syncTheme();
   els.showhnToggle.addEventListener('click', () => {
     ssSet(SS_SHOWHN, ssGet(SS_SHOWHN) === '1' ? '0' : '1');
     renderShowhn();
