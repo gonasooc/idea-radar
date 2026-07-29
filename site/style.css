@@ -36,7 +36,6 @@ body {
 .top { padding-top: calc(10px + env(safe-area-inset-top)); }
 .bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .bar h1 { font-size: 19px; margin: 6px 0; letter-spacing: -0.02em; }
-.bar-actions { display: flex; gap: 6px; }
 button {
   font: inherit;
   font-size: 13px;

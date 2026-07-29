@@ -18,15 +18,11 @@
 <header class="top">
   <div class="bar">
     <h1>idea-radar</h1>
-    <div class="bar-actions">
-      <button id="groupToggle" type="button" title="소스별 보기 전환">소스별</button>
-      <button id="seenBtn" type="button">여기까지 봤음</button>
-    </div>
   </div>
   <div id="banner" hidden></div>
   <input id="q" type="search" placeholder="검색 — 제목·한줄설명 (최근 12개월)" autocomplete="off">
+  <div class="chip-row" id="sourceChips"></div>
   <div id="chips" hidden>
-    <div class="chip-row" id="sourceChips"></div>
     <div class="chip-row" id="periodChips"></div>
   </div>
   <div id="visitLine"></div>

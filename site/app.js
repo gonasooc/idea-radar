@@ -28,22 +28,18 @@ const els = {
   showhnBlock: $('showhnBlock'),
   showhnToggle: $('showhnToggle'),
   showhnList: $('showhnList'),
-  seenBtn: $('seenBtn'),
-  groupToggle: $('groupToggle'),
   footNote: $('footNote'),
 };
 
 const state = {
   manifest: null,
   items: [],
-  groupBySource: false,
   query: '',
   searchSeq: 0,
-  searchSources: new Set(),
+  sourceFilter: new Set(),
   searchPeriod: '12',
   searchShowhn: false,
   showhnItems: null,
-  pendingSeenValue: null,
 };
 
 const kstDay = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', month: 'long', day: 'numeric', weekday: 'short' });
@@ -115,35 +111,32 @@ function renderBanner() {
   }
 }
 
-function renderVisitLine(count) {
+function renderVisitLine(total, shown) {
   const seen = lsGet(LS_SEEN);
+  const filterNote = shown !== total ? ` · 표시 ${shown}건` : '';
   if (!seen) {
-    els.visitLine.textContent = `처음 방문 · 최근 1일 새 항목 ${count}건`;
+    els.visitLine.textContent = `처음 방문 · 최근 1일 새 항목 ${total}건${filterNote}`;
     return;
   }
   const days = (Date.now() - Date.parse(seen)) / (24 * 3600 * 1000);
   const ago = days < 1 ? '오늘 다시 방문' : `${Math.round(days)}일 만에 방문`;
-  els.visitLine.textContent = `${ago} · 새 항목 ${count}건`;
+  els.visitLine.textContent = `${ago} · 새 항목 ${total}건${filterNote}`;
 }
 
 function renderFeed() {
   els.chips.hidden = true;
   els.list.textContent = '';
   const since = sinceCutoff();
-  const fresh = state.items.filter((it) => it.collectedAt > since).sort((a, b) => (a.collectedAt < b.collectedAt ? 1 : -1));
-  renderVisitLine(fresh.length);
-  els.seenBtn.disabled = fresh.length === 0;
+  const all = state.items.filter((it) => it.collectedAt > since).sort((a, b) => (a.collectedAt < b.collectedAt ? 1 : -1));
+  const fresh = state.sourceFilter.size === 0 ? all : all.filter((it) => state.sourceFilter.has(it.source));
+  renderVisitLine(all.length, fresh.length);
 
   if (fresh.length === 0) {
     const at = state.manifest ? kstTime.format(new Date(state.manifest.updatedAt)) : '';
-    els.list.appendChild(h('div', { class: 'empty', text: at ? `오늘 ${at} 기준 새 항목 없음` : '데이터 로딩 중…' }));
-  } else if (state.groupBySource) {
-    for (const key of Object.keys(SOURCES)) {
-      const group = fresh.filter((it) => it.source === key);
-      if (group.length === 0) continue;
-      els.list.appendChild(h('div', { class: 'day-head', text: `${SOURCES[key]} · ${group.length}건` }));
-      for (const it of group) els.list.appendChild(itemRow(it, { showDate: true }));
-    }
+    const msg = state.sourceFilter.size > 0 && all.length > 0
+      ? '선택한 소스에 새 항목 없음'
+      : at ? `오늘 ${at} 기준 새 항목 없음` : '데이터 로딩 중…';
+    els.list.appendChild(h('div', { class: 'empty', text: msg }));
   } else {
     let currentDate = '';
     for (const it of fresh) {
@@ -222,23 +215,26 @@ function chipButton(label, isOn, onClick) {
   return h('button', { class: isOn ? 'on' : '', text: label, onclick: onClick });
 }
 
-function renderChips() {
-  els.chips.hidden = false;
+function renderSourceChips() {
   els.sourceChips.textContent = '';
-  els.sourceChips.appendChild(chipButton('전체', state.searchSources.size === 0, () => { state.searchSources.clear(); runSearch(); }));
+  els.sourceChips.appendChild(chipButton('전체', state.sourceFilter.size === 0, () => { state.sourceFilter.clear(); render(); }));
   for (const [key, label] of Object.entries(SOURCES)) {
     if (key === 'showhn') continue;
-    els.sourceChips.appendChild(chipButton(label, state.searchSources.has(key), () => {
-      if (state.searchSources.has(key)) state.searchSources.delete(key);
-      else state.searchSources.add(key);
-      runSearch();
+    els.sourceChips.appendChild(chipButton(label, state.sourceFilter.has(key), () => {
+      if (state.sourceFilter.has(key)) state.sourceFilter.delete(key);
+      else state.sourceFilter.add(key);
+      render();
     }));
   }
+}
+
+function renderSearchChips() {
+  els.chips.hidden = false;
   els.periodChips.textContent = '';
   for (const [value, label] of [['1', '1개월'], ['3', '3개월'], ['12', '12개월'], ['all', '전체 기간']]) {
-    els.periodChips.appendChild(chipButton(label, state.searchPeriod === value, () => { state.searchPeriod = value; runSearch(); }));
+    els.periodChips.appendChild(chipButton(label, state.searchPeriod === value, () => { state.searchPeriod = value; render(); }));
   }
-  els.periodChips.appendChild(chipButton('Show HN 포함', state.searchShowhn, () => { state.searchShowhn = !state.searchShowhn; runSearch(); }));
+  els.periodChips.appendChild(chipButton('Show HN 포함', state.searchShowhn, () => { state.searchShowhn = !state.searchShowhn; render(); }));
 }
 
 function searchShardList() {
@@ -259,7 +255,7 @@ function searchShardList() {
 }
 
 async function runSearch() {
-  renderChips();
+  renderSearchChips();
   const q = state.query.toLowerCase();
   const seq = ++state.searchSeq;
   els.list.textContent = '';
@@ -288,7 +284,7 @@ async function runSearch() {
           if (seq !== state.searchSeq) return;
           for (let i = items.length - 1; i >= 0; i--) {
             const it = items[i];
-            if (state.searchSources.size > 0 && !state.searchSources.has(it.source)) continue;
+            if (state.sourceFilter.size > 0 && !state.sourceFilter.has(it.source) && !(it.source === 'showhn' && state.searchShowhn)) continue;
             if (!(it.title.toLowerCase().includes(q) || it.description.toLowerCase().includes(q))) continue;
             matched++;
             if (matched <= 300) slots[idx].appendChild(itemRow(it, { showDate: true }));
@@ -306,15 +302,9 @@ async function runSearch() {
 
 function render() {
   renderBanner();
+  renderSourceChips();
   if (state.query) runSearch();
   else renderFeed();
-}
-
-function markSeen() {
-  const max = maxCollectedAt();
-  if (!max) return;
-  lsSet(LS_SEEN, max);
-  render();
 }
 
 function scheduleAutoSeen() {
@@ -371,12 +361,6 @@ function init() {
     } catch {}
   }
 
-  els.seenBtn.addEventListener('click', markSeen);
-  els.groupToggle.addEventListener('click', () => {
-    state.groupBySource = !state.groupBySource;
-    els.groupToggle.classList.toggle('on', state.groupBySource);
-    render();
-  });
   els.showhnToggle.addEventListener('click', () => {
     ssSet(SS_SHOWHN, ssGet(SS_SHOWHN) === '1' ? '0' : '1');
     renderShowhn();
