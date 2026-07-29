@@ -36,7 +36,7 @@ const state = {
   items: [],
   query: '',
   searchSeq: 0,
-  sourceFilter: new Set(),
+  sourceFilter: null,
   searchPeriod: '12',
   searchShowhn: false,
   showhnItems: null,
@@ -128,12 +128,12 @@ function renderFeed() {
   els.list.textContent = '';
   const since = sinceCutoff();
   const all = state.items.filter((it) => it.collectedAt > since).sort((a, b) => (a.collectedAt < b.collectedAt ? 1 : -1));
-  const fresh = state.sourceFilter.size === 0 ? all : all.filter((it) => state.sourceFilter.has(it.source));
+  const fresh = state.sourceFilter === null ? all : all.filter((it) => it.source === state.sourceFilter);
   renderVisitLine(all.length, fresh.length);
 
   if (fresh.length === 0) {
     const at = state.manifest ? kstTime.format(new Date(state.manifest.updatedAt)) : '';
-    const msg = state.sourceFilter.size > 0 && all.length > 0
+    const msg = state.sourceFilter !== null && all.length > 0
       ? '선택한 소스에 새 항목 없음'
       : at ? `오늘 ${at} 기준 새 항목 없음` : '데이터 로딩 중…';
     els.list.appendChild(h('div', { class: 'empty', text: msg }));
@@ -217,12 +217,11 @@ function chipButton(label, isOn, onClick) {
 
 function renderSourceChips() {
   els.sourceChips.textContent = '';
-  els.sourceChips.appendChild(chipButton('전체', state.sourceFilter.size === 0, () => { state.sourceFilter.clear(); render(); }));
+  els.sourceChips.appendChild(chipButton('전체', state.sourceFilter === null, () => { state.sourceFilter = null; render(); }));
   for (const [key, label] of Object.entries(SOURCES)) {
     if (key === 'showhn') continue;
-    els.sourceChips.appendChild(chipButton(label, state.sourceFilter.has(key), () => {
-      if (state.sourceFilter.has(key)) state.sourceFilter.delete(key);
-      else state.sourceFilter.add(key);
+    els.sourceChips.appendChild(chipButton(label, state.sourceFilter === key, () => {
+      state.sourceFilter = state.sourceFilter === key ? null : key;
       render();
     }));
   }
@@ -284,7 +283,7 @@ async function runSearch() {
           if (seq !== state.searchSeq) return;
           for (let i = items.length - 1; i >= 0; i--) {
             const it = items[i];
-            if (state.sourceFilter.size > 0 && !state.sourceFilter.has(it.source) && !(it.source === 'showhn' && state.searchShowhn)) continue;
+            if (state.sourceFilter !== null && it.source !== state.sourceFilter && !(it.source === 'showhn' && state.searchShowhn)) continue;
             if (!(it.title.toLowerCase().includes(q) || it.description.toLowerCase().includes(q))) continue;
             matched++;
             if (matched <= 300) slots[idx].appendChild(itemRow(it, { showDate: true }));
