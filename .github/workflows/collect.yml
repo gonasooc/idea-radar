@@ -1,0 +1,94 @@
+name: collect
+
+on:
+  schedule:
+    - cron: '37 19 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: collect
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: collect
+        id: collect
+        run: node src/run.ts
+
+      - name: commit and push
+        if: always()
+        run: |
+          if [ "${{ steps.collect.outputs.data_valid }}" = "false" ]; then
+            echo "::error::collected data failed JSON validation — refusing to commit"
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3; do
+            git add -A
+            if git diff --cached --quiet; then
+              echo "no changes"
+              exit 0
+            fi
+            git commit -m "collect $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            if git push origin main; then
+              exit 0
+            fi
+            echo "push failed (attempt $attempt) — recomputing on fresh origin/main"
+            git fetch origin main
+            git reset --hard origin/main
+            node src/run.ts --replay
+          done
+          echo "::error::push failed after 3 attempts"
+          exit 1
+
+      - name: configure pages
+        if: ${{ !cancelled() }}
+        uses: actions/configure-pages@v5
+
+      - name: upload pages artifact
+        if: ${{ !cancelled() }}
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: deploy pages
+        id: deployment
+        if: ${{ !cancelled() }}
+        uses: actions/deploy-pages@v4
+
+      - name: report failures
+        if: always()
+        run: |
+          FAILED="${{ steps.collect.outputs.failed_sources }}"
+          ALERT="${{ steps.collect.outputs.alert_sources }}"
+          ALL="${{ steps.collect.outputs.all_failed }}"
+          if [ -n "$FAILED" ]; then
+            echo "failed this run: $FAILED"
+          fi
+          if [ "$ALL" = "true" ]; then
+            echo "::error::all sources failed"
+            exit 1
+          fi
+          if [ -n "$ALERT" ]; then
+            echo "::error::sources failing 2+ consecutive runs: $ALERT"
+            exit 1
+          fi
+          echo "ok"

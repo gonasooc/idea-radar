@@ -1,0 +1,27 @@
+name: keepalive
+
+on:
+  schedule:
+    - cron: '23 18 1 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          sed -i "s/<!-- keepalive: [0-9-]* -->/<!-- keepalive: $(date -u +%Y-%m-%d) -->/" README.md
+          git add README.md
+          if git diff --cached --quiet; then
+            echo "no changes"
+            exit 0
+          fi
+          git commit -m "keepalive $(date -u +%Y-%m)"
+          git push origin main
