@@ -1,6 +1,12 @@
 name: collect
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'site/**'
+      - '.github/workflows/collect.yml'
   schedule:
     - cron: '37 19 * * *' # 04:37 KST
     - cron: '7 3 * * *' # 12:07 KST
@@ -26,15 +32,17 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
+        if: ${{ github.event_name != 'push' }}
         with:
           node-version: 24
 
       - name: collect
         id: collect
+        if: ${{ github.event_name != 'push' }}
         run: node src/run.ts
 
       - name: commit and push
-        if: always()
+        if: ${{ always() && github.event_name != 'push' }}
         run: |
           if [ "${{ steps.collect.outputs.data_valid }}" = "false" ]; then
             echo "::error::collected data failed JSON validation — refusing to commit"
@@ -76,7 +84,7 @@ jobs:
         uses: actions/deploy-pages@v4
 
       - name: report failures
-        if: always()
+        if: ${{ always() && github.event_name != 'push' }}
         run: |
           FAILED="${{ steps.collect.outputs.failed_sources }}"
           ALERT="${{ steps.collect.outputs.alert_sources }}"
