@@ -1,0 +1,338 @@
+{
+  "knownSources": [
+    {
+      "source": "Product Hunt",
+      "url": "https://www.producthunt.com/feed",
+      "endpoint": "https://www.producthunt.com/feed",
+      "method": "rss",
+      "feasibility": "easy",
+      "verified": true,
+      "fields": [
+        "title",
+        "description (content HTML 첫 <p>가 한줄설명, HTML 스트리핑 필요)",
+        "link (PH 제품 페이지, rel=alternate)",
+        "external link (/r/p/<id> 리다이렉트로 제품 실사이트)",
+        "published (ISO8601)",
+        "updated",
+        "author name",
+        "id (tag:...Post/<숫자> — 중복제거 키)"
+      ],
+      "volume_per_day": "약 10-13건 (최근 2일 기준 13건/11건)",
+      "notes": "HTTP 200, Atom 형식(RSS 2.0 아님), 50개 항목. 기본 curl UA도 200이지만 Cloudflare 뒤라 브라우저 UA 권장. 주의: 피드 정렬이 featured/updated 기준이라 published가 수개월 전인 항목 섞임 → 날짜 필터 대신 entry id(Post/<id>)로 dedupe할 것. 변형: /feed?category=<slug> 실제 필터링 확인됨(artificial-intelligence 검증, 메인과 25/50만 겹침). /feed/daily, /feed/undiscovered는 피드 아님(@user 라우팅으로 301). 피드 레벨 <id>에 타인의 category 파라미터가 캐싱돼 나오는 사소한 버그 있음(무시 가능). 득표수/토픽 등 필요하면 공식 GraphQL API v2 있으나 OAuth 토큰 필요."
+    },
+    {
+      "source": "Hacker News – Show HN (Algolia official API)",
+      "url": "https://news.ycombinator.com/show",
+      "endpoint": "https://hn.algolia.com/api/v1/search_by_date?tags=show_hn&hitsPerPage=500&numericFilters=created_at_i%3E{last_run_unix_ts}",
+      "method": "official_api",
+      "feasibility": "easy",
+      "verified": true,
+      "fields": [
+        "title",
+        "url",
+        "story_text",
+        "author",
+        "created_at",
+        "created_at_i",
+        "points",
+        "num_comments",
+        "objectID"
+      ],
+      "volume_per_day": "약 140~165건 (최근 24h 163건, 7일 평균 139건/일)",
+      "notes": "인증/봇차단 없음, JSON 즉시 응답 확인. numericFilters=created_at_i>ts (>는 %3E로 인코딩 필수)로 증분 수집하면 요청 1번에 하루치 전부 커버 (hitsPerPage 최대 1000, 페이지네이션 window 1000건 제한이지만 일일 물량 ~165건이라 무관). 주의: url은 텍스트 전용 Show HN에서 null 가능 → https://news.ycombinator.com/item?id={objectID}로 폴백; 한줄설명은 story_text 사용(null 가능, HTML 엔티티 포함). 레이트리밋 시간당 10,000요청. Firebase 공식 API(/v0/showstories.json)는 ID 197개만 반환 + 항목당 개별 요청 필요(N+1) + 날짜 필터 불가라서 일일 배치에는 Algolia가 명백히 우월."
+    },
+    {
+      "source": "Disquiet (디스콰이엇)",
+      "url": "https://disquiet.io/products",
+      "method": "internal_api",
+      "endpoint": "https://disquiet.io/products.json?page=1",
+      "feasibility": "easy",
+      "verified": true,
+      "fields": [
+        "name (제목)",
+        "tagline (한줄설명)",
+        "description (본문 전체)",
+        "slug (원문 링크: https://disquiet.io/products/{slug})",
+        "url (제품 외부 사이트)",
+        "approved_at (ISO 날짜)",
+        "id"
+      ],
+      "volume_per_day": "약 8~10건 (승인이 며칠치 배치로 몰림, 예: 60건이 같은 날짜)",
+      "notes": "전제가 구식: SPA가 아니라 Rails 서버렌더링으로 이전됨(빈 셸 아님, 기본 curl UA도 200). products.json?page=N이 인증/쿠키 없이 20건씩 JSON 배열 반환, id 내림차순(최신순), 총 ~361페이지/7,218개 확인. per_page 파라미터는 무시됨(고정 20). headless 불필요. 수집기는 매일 1~3페이지만 긁고 id/slug로 dedup 권장 — approved_at이 배치 승인이라 날짜만으로 신규 판별하면 놓침. 리스크: (1) 문서화 안 된 Rails 관례 엔드포인트라 예고 없이 사라질 수 있음(그 경우 같은 URL의 HTML 파싱이 폴백 — 제목/한줄설명/링크가 서버렌더링 HTML에 그대로 있음, 카드 셀렉터 div.card 20개/페이지), (2) Cloudflare 프론트라 봇차단 강화 가능성(현재는 challenge 없음, 브라우저 UA 권장), (3) robots.txt가 ClaudeBot/GPTBot 등 AI 크롤러 UA 차단 + ai-train=no 시그널(일반 UA는 Allow: /). RSS 없음(products.rss=406), sitemap/products.xml은 URL+lastmod만 있어 백업용."
+    },
+    {
+      "source": "GeekNews Show (news.hada.io/show)",
+      "url": "https://news.hada.io/show",
+      "method": "rss",
+      "endpoint": "https://news.hada.io/rss/news",
+      "feasibility": "easy",
+      "verified": true,
+      "fields": [
+        "title",
+        "description",
+        "link",
+        "date",
+        "author",
+        "topic_id",
+        "external_url",
+        "points"
+      ],
+      "volume_per_day": "3~8건 (평균 ~5건)",
+      "notes": "Show 전용 피드 없음(/rss/show 404, /rss/ 403 확인). 공식 Atom 피드 /rss/news(사이트 전체 50엔트리, 깊이 약 1.5일 ≈ 33건/일)에서 제목 접두어 \"Show GN:\"으로 필터하면 시간순 수집 가능 — 하루 1회 cron에 충분한 깊이. 피드 필드: title, published(ISO8601 KST), author, content(요약 HTML), link(단, link는 news.hada.io/topic?id=N 페이지이며 원문 외부 URL 아님). 원문 외부 URL은 topic?id=N 상세 페이지(서버렌더링)에서만 추출 가능 — 신규 항목당 1회 추가 요청(확인: id=31904에서 실제 외부 href 추출됨). points가 필요하면 상세 페이지 또는 /show HTML에서 span#tp<id>로 획득. 예비 수단: /show HTML도 완전 서버렌더링(div.topic_row[data-topic-state-id], h2.topic-title-heading, div.topicdesc a(~80자 잘림), span.topicurl(도메인만), time[datetime][data-timestamp])이고 페이지네이션은 /show?page=N(페이지당 20개, 200 확인) — 단 점수 랭킹 정렬이라 시간순 아님(18일 된 인기글이 중간에 섞임) → topic id 기반 dedupe 필수. 봇차단 없음: 기본 curl UA도 200이지만 관례상 브라우저 UA 권장. 로그인 불필요. 깨질 위험: 피드는 제목 접두어 규칙(\"Show GN:\") 의존, HTML 파싱은 클래스명 변경 시 파손."
+    },
+    {
+      "source": "SYDE 쇼케이스 (syde.kr)",
+      "url": "https://syde.kr/showcase",
+      "endpoint": "https://syde.kr/showcase",
+      "method": "static_html",
+      "feasibility": "easy",
+      "verified": true,
+      "fields": [
+        "title (name)",
+        "description (short_description)",
+        "tagline",
+        "link (https://syde.kr/showcase/{slug})",
+        "external_link (프로젝트 자체 URL, 리스트에선 종종 빈값·상세페이지 SSR엔 항상 존재)",
+        "date (created_at ISO8601)",
+        "thumbnail_url",
+        "views_count",
+        "id (uuid)"
+      ],
+      "volume_per_day": "1~2건 (사이트맵 누적 148건, 첫 페이지 20건 중 17건이 최근 12일 내 생성)",
+      "notes": "Next.js App Router(Vercel) SSR. 아이템 데이터가 RSC flight payload(self.__next_f.push([1,\"...\"]) 스크립트 청크)에 JSON으로 통째로 들어있음 — __NEXT_DATA__는 없음. 추출법: 청크 문자열을 각각 JSON 디코드 후 이어붙여 {\"id\":\"<uuid>\"로 시작하고 name+slug+created_at을 가진 객체를 중괄호 균형 스캔으로 파싱(검증 스크립트로 20건 확인). 주의: (1) 리스트 정렬이 created_at이 아니라 bumped_at(끌올/활동) 기준이라 위치가 아닌 created_at으로 신규 필터링하고 id로 dedupe 필요(latestAwardedShowcase로 1건 중복 등장) (2) ?page=2는 서버에서 무시됨(클라이언트 페이지네이션, 백엔드 Supabase) — 하루 1~2건이라 첫 20건이면 충분 (3) RSS 없음(/feed는 HTML 커뮤니티 페이지), sitemap.xml은 148개 쇼케이스 URL 있으나 lastmod가 생성일 아님(슬러그 diff 폴백용) (4) 한글 slug는 URL 인코딩 필요 (5) 깨질 위험: Next.js 버전업 시 flight 청크 포맷 변경 가능. 로그인/봇차단 없음, robots.txt는 /showcase 허용."
+    }
+  ],
+  "newCandidates": [
+    {
+      "source": "조코헌트 (jocoHunt)",
+      "url": "https://jocohunt.com/",
+      "method": "static_html",
+      "feasibility": "easy",
+      "verified": true,
+      "endpoint": "https://jocohunt.com/ (홈 HTML의 Next.js flight payload에서 \"products\":[...] 추출) + 보조: https://jocohunt.com/sitemap.xml 의 /p/ URL 일일 diff",
+      "fields": [
+        "title (name)",
+        "description (tagline)",
+        "link (https://jocohunt.com/p/<slug>)",
+        "date (launchedAtMs, epoch ms)",
+        "category (categorySlug/categoryLabel)",
+        "upvotes",
+        "commentCount",
+        "maker (makerHandle/makerName)",
+        "logoUrl"
+      ],
+      "volume_per_day": "2~5건/일 (이번 주 2일간 7건 확인, 사이트맵 기준 누적 170개 제품 — 성장 중)",
+      "notes": "RSS 없음(/rss 등 모두 HTML 셸 반환). 홈페이지가 서버렌더링되어 이번 주 런칭 제품의 완전한 JSON(name, tagline, slug, launchedAtMs, upvotes 등)이 self.__next_f.push 스크립트에 이스케이프된(\\\") 형태로 포함됨 — \\\\\"를 \"로 치환 후 regex 파싱하면 됨. 2026-07-29 당일 런칭 3건 실데이터로 검증 완료. 봇차단 없음(기본 curl UA도 200). /products 전체 목록은 클라이언트 fetch라 HTML에 데이터 없음 → 홈 파싱 + sitemap.xml /p/ URL diff(당일 반영 확인됨, 상세페이지 title/meta-desc 서버렌더링)를 병행하면 누락 방지. 깨질 위험: Next.js 재배포 시 flight payload 구조/키 변경 가능. 공식 MCP(https://jocohunt.com/api/mcp)는 로그인 후 개인 API 키(Bearer) 발급 필요 — 계정 만들면 더 안정적인 공식 경로로 업그레이드 가능. 일반 IT 뉴스가 아닌 실제 신규 프로덕트 런칭 커뮤니티임을 확인."
+    },
+    {
+      "source": "OKKY 홍보·광고 게시판",
+      "url": "https://okky.kr/community/promote",
+      "method": "internal_api",
+      "feasibility": "easy",
+      "verified": true,
+      "endpoint": "https://api.okky.kr/articles?categoryCode=promote&size=20&page=0",
+      "fields": [
+        "title",
+        "description",
+        "link",
+        "date",
+        "category",
+        "author",
+        "viewCount"
+      ],
+      "volume_per_day": "게시판 전체 1~4건/일(평균 ~2건), 그중 실제 신규 앱/웹서비스 제품 글은 ~0.5-1건/일",
+      "notes": "인증·봇차단 전혀 없음(기본 curl UA도 200). 반드시 categoryCode=promote 사용 — category=promote는 조용히 무시되어 전체 글이 섞여 나옴. Spring Data 페이지 포맷(content[], totalElements, page/size 파라미터), 최신순 정렬. 목록 응답의 summary는 null이므로 한줄설명은 상세 API(https://api.okky.kr/articles/{id})의 content.text(HTML)에서 첫 문장 추출 필요. 원문 링크는 https://okky.kr/articles/{id}. 게시판 성격상 제품 홍보 외 교육/공모전/스터디 모집 광고가 절반가량 섞여 있어 키워드 필터('만들었', '만들어봤', '출시', '베타', '테스터' 등) 권장. 비공식 내부 API라 예고 없이 스키마 변경될 수 있음. robots.txt는 okky.kr/api/만 금지하며 api.okky.kr 호스트는 언급 없음."
+    },
+    {
+      "source": "EO플래닛 (EO planet)",
+      "url": "https://eopla.net/",
+      "method": "static_html",
+      "feasibility": "easy",
+      "verified": true,
+      "endpoint": "https://eopla.net/magazines?order=new&page={N}",
+      "fields": [
+        "title",
+        "description",
+        "link",
+        "date",
+        "tags",
+        "author",
+        "author_affiliation"
+      ],
+      "volume_per_day": "전체 약 100~120건(콘텐츠팜 스팸 포함), 스팸 제외 실질 15~30건, 그중 신규 앱/서비스 제품 소개 글 약 2~5건",
+      "notes": "RSS 없음, sitemap은 이벤트 위주라 무용. 목록 페이지가 완전 SSR: 카드마다 div.title(제목), div.body(한줄요약), /magazines/{id} 링크, span.time(상대시간 '약 N시간 전')이 노출되고 페이지당 20건, &page=N 페이지네이션. 절대날짜(YYYY. MM. DD)는 상세 페이지 div.title-footer에만 있어 목록의 상대시간을 파싱하거나 상세를 추가 요청해야 함. 글 ID가 순차 증가라 max ID 기준 신규분 추출 용이. 봇차단 전무(기본 curl UA도 200). 최대 리스크: (1) 세무/회계 SEO 콘텐츠팜이 최신순과 '모집/홍보' 카테고리를 도배 중이라 제목 키워드 기반 스팸 필터 필수, (2) 제품 출시 글 전용 카테고리가 없어(모집/홍보도 오염됨) '만들었', '출시', '앱', '서비스' 등 키워드 필터로 선별 필요, (3) CSS 클래스명 변경 시 파서 깨짐. 하루 1회 cron이면 최신순 3~5페이지 수집으로 충분."
+    },
+    {
+      "source": "플래텀 (Platum)",
+      "url": "https://platum.kr/",
+      "method": "official_api",
+      "feasibility": "easy",
+      "verified": true,
+      "endpoint": "https://platum.kr/wp-json/wp/v2/posts?per_page=30&_fields=id,date,link,title,excerpt",
+      "fields": [
+        "title",
+        "description(excerpt, HTML 태그 제거 필요)",
+        "link",
+        "date",
+        "categories",
+        "author(RSS의 dc:creator)"
+      ],
+      "volume_per_day": "평일 약 10~16건, 주말 2~5건 (2026-07-29 12건, 07-28 16건 실측)",
+      "notes": "공식 RSS(https://platum.kr/feed)도 200 OK로 정상 동작하지만 항목이 10개 고정이고 ?paged=2 가 캐시 문제로 과거 항목을 안정적으로 안 줌 — 평일 물량(최대 16건)이 10건을 초과하므로 하루 1회 cron이면 누락 위험. 따라서 WordPress REST API(wp-json, 인증 불필요, per_page 최대 100)를 주 수집 경로로 권장, RSS는 폴백. 응답에 UTF-8 BOM 있음(utf-8-sig로 파싱). 브라우저 UA로 봇차단·로그인 없음 확인. 콘텐츠는 스타트업 투자/생태계 뉴스가 다수이나 신규 제품·서비스 출시 기사(예: AI 펫캠 '킨포라' 출시, 카카오 온디바이스 LLM 공개)가 매일 섞여 나와 아이디어 탐색 목적에 부합. '출시/공개/런칭' 키워드나 카테고리로 필터링하면 신호 밀도 향상 가능. WordPress 표준 구조라 깨질 위험 낮음."
+    },
+    {
+      "source": "지피터스 (GPTERS)",
+      "url": "https://www.gpters.org/",
+      "method": "static_html",
+      "feasibility": "medium",
+      "verified": true,
+      "endpoint": "https://www.gpters.org/sitemap.xml (인덱스) → 스페이스별 https://www.gpters.org/{nocode|dev|llm-service|ai-writing|data-science|marketing|chatbot}/sitemap.xml → 신규 포스트 URL 개별 fetch 후 head 메타태그 파싱",
+      "fields": [
+        "title (<title>/og:title)",
+        "description (meta description, ~160자 truncated)",
+        "link (canonical)",
+        "date (article:published_time)",
+        "space/category (twitter:label2 'Posted in')",
+        "og:image"
+      ],
+      "volume_per_day": "전체 약 80건/일 (표본 9개 스페이스 주간: nocode 435, dev 54, ai-writing 24, data-science 21, llm-service 16, marketing 15 등). 이 중 '만든 서비스/사이드프로젝트 공개'성 글은 대략 5~15건/일로 추정 — 필터링 필요",
+      "notes": "BetterMode(구 Tribe) 기반. RSS 없음(/rss, /feed는 SPA Not Found HTML). 수집 경로: robots.txt에 공개된 sitemap 인덱스(스페이스별 34개, loc+lastmod). 목록 페이지는 CSR이라 파싱 불가하지만 개별 포스트 페이지는 SSR 메타태그 완비 — 제목/요약/발행일/이미지/스페이스명이 비로그인 curl로 확보됨(2개 스페이스에서 실측 확인). 본문 전체는 로그인/JS 필요하나 수집 필드에는 불필요. 봇차단 없음(기본 curl UA도 200). 주의: (1) lastmod는 수정시각이라 신규글 판별은 URL diff(dedupe)로 해야 함, (2) 콘텐츠는 스터디 빌드로그/팁/질문이 주류이고 신규 서비스 공개는 그 일부라 키워드·LLM 필터 단계 필수 — 보조 소스로 적합, (3) 하루 ~80건 개별 fetch 필요(요청량 부담 낮음), (4) BetterMode가 sitemap 구조나 SSR 메타 정책을 바꾸면 깨질 수 있음."
+    },
+    {
+      "source": "Apple 앱스토어 한국 신규 앱 RSS (iTunes newapplications)",
+      "url": "https://itunes.apple.com/kr/rss/newapplications/limit=50/xml",
+      "method": "rss",
+      "endpoint": "https://itunes.apple.com/kr/rss/newapplications/limit=50/xml (JSON 변형: https://itunes.apple.com/kr/rss/newapplications/limit=50/json)",
+      "feasibility": "easy",
+      "verified": true,
+      "fields": [
+        "title (im:name)",
+        "link (apps.apple.com)",
+        "date (im:releaseDate)",
+        "category",
+        "developer (im:artist)",
+        "price",
+        "icon image",
+        "app id / bundleId"
+      ],
+      "volume_per_day": "피드에 상시 ~103건 노출, 출시일이 배치성(한 날짜에 86건 몰림)이라 일별 신규는 dedupe 후 대략 10~50건 추정 (며칠 관찰 필요)",
+      "notes": "HTTP 200, 피드 updated=2026-07-28로 활발. 무인증·봇차단 없음(기본 curl UA도 통과). 주의: (1) limit 파라미터 무시되어 항상 103건 반환 → 앱 id 기준 dedupe 필수. (2) 한줄설명이 피드에 없음 — content:html은 이름/장르/날짜 카드뿐. 설명 필요 시 공식 Lookup API https://itunes.apple.com/lookup?id={id}&country=kr 로 보강(검증 완료, id 콤마로 배치 조회 가능). (3) releaseDate가 2~3주 지연된 날짜로 몰려 수집일 기준 date 병기 권장. (4) 구형 itunes.apple.com/rss 엔드포인트라 장기적 폐기 리스크 있음 — 신형 rss.marketingtools.apple.com v2에는 신규앱 피드가 없어(404, top-free/top-paid만 지원) 대체 불가."
+    },
+    {
+      "source": "스타트업레시피 (Startup Recipe)",
+      "url": "https://startuprecipe.co.kr",
+      "endpoint": "https://startuprecipe.co.kr/wp-json/wp/v2/posts?per_page=30&_fields=id,date,link,title,excerpt,categories",
+      "method": "official_api",
+      "feasibility": "easy",
+      "verified": true,
+      "fields": [
+        "title",
+        "description (excerpt.rendered, HTML)",
+        "link",
+        "date (ISO8601 KST)",
+        "id",
+        "categories"
+      ],
+      "volume_per_day": "주중 약 8건/일, 주말 약 3건/일 (단, [AI서머리] 1건 안에 여러 기업 소식이 묶여 있어 실질 뉴스 아이템은 더 많음)",
+      "notes": "사이트 활발히 운영 중(당일 새벽 게시물 확인). WP REST API 완전 개방: per_page=100까지 동작, 기본 curl UA도 200 (봇차단 없음). 페이지네이션은 &page=N. /feed RSS도 200이지만 페이지당 4건뿐이라 wp-json 권장. 주의: (1) 콘텐츠는 투자·생태계 뉴스 중심이며 전체의 60~70%가 [AI서머리] 보도자료 요약 묶음 — 신규 서비스 출시 기사는 매일 있으나 소수라 제목/본문에서 '출시·론칭·오픈·베타' 등 키워드 필터링 필요. (2) 제목에 HTML 엔티티(&#8216; 등) 포함되어 unescape 필요. (3) excerpt는 HTML이라 태그 제거 필요. (4) 카테고리는 사실상 'news' 하나뿐이라 카테고리로 제품 기사만 골라낼 수 없음."
+    },
+    {
+      "source": "벤처스퀘어 (VentureSquare)",
+      "url": "https://www.venturesquare.net",
+      "endpoint": "https://www.venturesquare.net/feed",
+      "method": "rss",
+      "feasibility": "easy",
+      "verified": true,
+      "fields": [
+        "title",
+        "description",
+        "link",
+        "pubDate",
+        "dc:creator",
+        "category",
+        "content:encoded"
+      ],
+      "volume_per_day": "평일 약 20~30건 (피드 30개 항목이 ~14시간 분량). 이 중 신규 제품/서비스 출시 관련은 약 3~8건",
+      "notes": "표준 WordPress RSS로 안정적. 단 기본 curl UA는 HTTP 410으로 차단되므로 브라우저 User-Agent 필수. 피드는 30건 고정이지만 /feed/?paged=2 페이지네이션 동작 확인(200) — 하루 1회 cron이면 page 1~2로 충분. 콘텐츠는 제품 출시 외에 투자유치·정부지원사업·제휴 뉴스가 섞여 있어 제목/설명에 출시·오픈·베타·론칭 등 키워드 필터링 권장. lastBuildDate가 당일로 갱신되는 활성 매체."
+    },
+    {
+      "source": "일딴 (ilddan.com) — 바이브코딩 자랑 커뮤니티 마켓",
+      "url": "https://ilddan.com/",
+      "endpoint": "https://ilddan.com/market?cat=web (게임 포함 시 https://ilddan.com/market?cat=game 추가 호출; 백업용 https://ilddan.com/sitemap.xml)",
+      "method": "static_html",
+      "feasibility": "easy",
+      "verified": true,
+      "fields": [
+        "title",
+        "description(전문, 한줄설명은 첫 줄 사용)",
+        "url(https://ilddan.com/product/{id})",
+        "file_url(실제 제품 외부 링크)",
+        "created_at(ISO8601)",
+        "category",
+        "seller_name",
+        "tags",
+        "views",
+        "downloads",
+        "comment_count"
+      ],
+      "volume_per_day": "cat=web 약 1~2건/일, cat=game 약 0.4건/일 (전체 마켓 86건/26일 ≈ 3.3건/일; '시간 단위' 수준은 아님)",
+      "notes": "1군 판정 (조건부): 마켓 전체는 스킬/가이드/템플릿/프롬프트가 섞인 혼합 피드(2군)이지만 서버사이드 카테고리 필터 ?cat=web(웹,앱,SaaS 36건)과 ?cat=game(11건)이 완성 제품만 정확히 분리하므로 이 엔드포인트 기준으로는 키워드 필터 불필요한 1군. 잡글은 별도 /community 보드라 자동 배제. 수집 방법: SSR HTML 내 React Query dehydrated JSON 블롭({\\\"mutations\\\":[],\\\"queries\\\":[...] 패턴)을 파싱하면 최신순 12건의 완전한 구조화 데이터(created_at 포함)가 나옴 — 실제 호출로 검증 완료. RSS 없음(404). 봇차단 없음: 일반 curl+브라우저 UA로 전부 200 (Vercel, Cloudflare 챌린지 없음). 페이지네이션: URL의 page/per 파라미터는 서버가 무시하고 항상 1페이지 12건만 렌더링(클라이언트는 server action/Supabase로 추가 로드, /api 라우트 없음, JS 번들에 anon key 미노출) — 일 1회 크론엔 12건이면 충분. 깨질 위험: dehydrated JSON 구조가 Next.js/React Query 내부 구현에 묶여 있어 리팩터링 시 파손 가능 → 폴백 1: HTML의 a.pcard 마크업(제목+링크) 파싱, 폴백 2: sitemap.xml lastmod 디핑 후 신규 제품 페이지의 og:title/og:description 추출(모두 SSR로 검증됨). 단 sitemap lastmod는 수정시각일 수 있고 카테고리 정보가 없음. 사이트가 2026년 7월 초 개설된 신생 서비스라 구조 변경 가능성 자체가 중간 수준."
+    },
+    {
+      "source": "렛플 출시 (Letspl Release)",
+      "url": "https://letspl.me/release",
+      "method": "internal_api",
+      "feasibility": "easy",
+      "verified": true,
+      "endpoint": "POST https://letspl.me/mgmt_expo/new_booth_type — JSON body {\"type\":\"all\",\"limit\":50,\"offset\":0}, Content-Type: application/json, 인증 불필요",
+      "fields": [
+        "SERVICE_NAME (제목)",
+        "SERVICE_INTRODUCTION (한줄설명)",
+        "SERVICE_CODE (원문링크: https://letspl.me/booth/{SERVICE_CODE})",
+        "UPDATE_TIME (날짜 YYYY-MM-DD)",
+        "SERVICE_CATEGORY",
+        "SERVICE_LOGO",
+        "BOOTH_NO"
+      ],
+      "volume_per_day": "평균 5~6건/일 (실제로는 주 1회 ~40건 일괄 등록 + 간헐적 단건 1~2건/주)",
+      "notes": "1군 판정 — 보드에 신규 제품만 올라오므로 키워드 필터 불필요. 검증: curl 실호출로 200건 수신, offset 페이지네이션·최신순 정렬·booth 상세 URL(200) 모두 확인. 인증/쿠키 불필요, 봇차단 없음. 주의: (a) 주간 배치 ~40건은 해외 Google Play 앱 자동 수집으로 추정(외국어 앱, play-lh 로고) — 진짜 한국 사이드프로젝트 출시는 단건 등록분(주 0~1건)이므로, 한국 프로젝트만 원하면 한국어 설명 여부/동일날짜 대량등록 여부로 2차 필터 권장. (b) 비공식 내부 API라 경로 변경 리스크 있음(Next.js 재빌드에도 API 경로는 별개라 비교적 안정적). (c) RSS(letspl.me/rss)는 project/quest만 포함해 release 보드에는 못 씀. (d) SSR __NEXT_DATA__의 booth_data가 빈 배열이라 HTML 파싱 불가 — 내부 API가 유일한 현실적 방법. 참고: 주간랭킹은 POST /mgmt_expo/load_week_ranking (body {})."
+    },
+    {
+      "source": "와우테일 (wowtale.net)",
+      "url": "https://wowtale.net/feed/",
+      "endpoint": "https://wowtale.net/wp-json/wp/v2/posts?per_page=30&_fields=id,date,link,title,excerpt,categories",
+      "method": "official_api",
+      "feasibility": "easy",
+      "verified": true,
+      "fields": [
+        "title",
+        "excerpt(한줄설명)",
+        "link",
+        "date",
+        "categories",
+        "author(dc:creator)"
+      ],
+      "volume_per_day": "평일 11~20건, 평균 약 12건/일 (주말 2~9건)",
+      "notes": "2군 판정: 최근 100건 분석 결과 투자유치 기사 ~56%, 정부/정책/행사/기업 일반 뉴스 ~36%, 순수 신규 제품·서비스 출시 기사는 3~8%에 불과. '출시' 전용 카테고리 없음(최대 카테고리는 funding 7,338건) → 출시/공개/런칭/선보 등 키워드 필터 필수이며 필터 후에도 하루 0~2건의 낮은 수율. 투자유치 기사 본문이 신규 서비스를 소개하는 경우가 많아 보조 소스로는 유효. 기술적 수집은 쉬움: WordPress이며 RSS(https://wowtale.net/feed/, 10건/페이지, ?paged=N 동작)와 WP REST API(per_page=100까지, JSON) 모두 인증 없이 열려 있음. RSS는 10건 제한이라 평일 물량(최대 20건)을 놓칠 수 있어 wp-json per_page=30을 1차 권장, RSS는 폴백. 주의: Cloudflare가 기본 curl UA를 403으로 차단하므로 브라우저 User-Agent 헤더 필수(JS 챌린지는 없음). GitHub Actions IP 차단 가능성 낮으나 403 발생 시 UA 재확인 필요. 깨질 위험 낮음(표준 WP 엔드포인트)."
+    },
+    {
+      "source": "앱스토리 매거진 (AppStory)",
+      "url": "https://www.appstory.co.kr/",
+      "method": "rss",
+      "endpoint": "https://news.appstory.co.kr/rss/rss.xml.html?cate=all",
+      "feasibility": "medium",
+      "verified": true,
+      "fields": [
+        "title",
+        "description(요약, CDATA)",
+        "link",
+        "date(atom:published, ISO8601)",
+        "category(atom:category label)",
+        "author",
+        "image(media:content)"
+      ],
+      "volume_per_day": "RSS(매거진) 약 1~2건/일 수준(주 4~8건); 데일리 IT뉴스는 주중 3~6건/일이나 RSS 미포함",
+      "notes": "2군 판정 — 그리고 목적 적합성이 매우 낮음. [핵심] '신규 앱 소개' 카테고리는 사실상 폐지 상태: /application/ 최신 글이 2021-06-22, cate=app RSS는 2016년, cate=apps는 2021년에서 멈춤. 현재 발행물은 가전/액세서리 리뷰(드라이기·가습기·마사지건), 설문 랭킹, 칼럼, 일반 IT산업 뉴스(규제·소송·반도체)로, 신규 앱/웹서비스 아이디어 소스로는 수확이 거의 없어 '출시/앱/서비스' 키워드 필터를 걸어도 월 수 건 수준 예상. [기술] 수집 자체는 쉬움: RSS 2.0 실존·검증됨(추정과 달리 RSS 지원), EUC-KR 인코딩이라 iconv/디코딩 필수. 로그인·봇차단 없음(브라우저 UA로 curl 정상, robots.txt ai-train=yes). 단 RSS는 monthly 매거진 글만 담고 데일리 IT뉴스(daily####)는 미포함 — 그쪽은 내부 API https://news.appstory.co.kr/Bboard/boardlist_ajax.inc.php?ver=3&search=&key=&page=0&toPage=0&mode=&mode2=&modes=&sub_cate=news&tid= (검증됨, EUC-KR HTML 조각: tit_feed=제목, text_feed=요약, href=링크, data-datetime=unix시각, page 파라미터로 페이지네이션)로 수집 가능. 목록 페이지는 JS(AJAX) 렌더링이라 정적 HTML 파싱 불가하지만 headless는 불필요. [깨질 위험] 낮음(구형 PHP 스택, 수년간 구조 유지 추정). [결론] 기술적으로는 easy지만 1군은커녕 2군 필터로도 신규 앱 기사가 거의 안 나오므로 수집 대상에서 제외하거나 최하순위 권장 — feasibility를 medium으로 낮춘 사유는 목적 부적합."
+    }
+  ]
+}
