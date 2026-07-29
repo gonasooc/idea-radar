@@ -80,7 +80,7 @@ function itemRow(item, opts) {
   if (opts && opts.score !== undefined) title.appendChild(h('span', { class: 'when', text: `${opts.score}p` }));
   const row = h('a', { class: 'row', href: item.url, target: '_blank', rel: 'noopener' }, title);
   if (item.description) row.appendChild(h('span', { class: 'd', text: item.description }));
-  const wrap = h('div', { style: 'position:relative' }, row);
+  const wrap = h('div', { class: 'item-wrap' }, row);
   if (item.externalUrl) {
     wrap.appendChild(h('a', { class: 'ext', href: item.externalUrl, target: '_blank', rel: 'noopener', title: '제품 사이트 열기', text: '↗' }));
   }
@@ -214,7 +214,7 @@ function renderShowhn() {
 }
 
 function chipButton(label, isOn, onClick) {
-  return h('button', { class: isOn ? 'on' : '', text: label, onclick: onClick });
+  return h('button', { class: isOn ? 'on' : '', 'aria-pressed': String(isOn), text: label, onclick: onClick });
 }
 
 function renderSourceChips() {
@@ -316,8 +316,11 @@ function currentTheme() {
 
 function syncTheme() {
   const theme = currentTheme();
-  els.themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
-  const color = theme === 'dark' ? '#0e1420' : '#f6f7f9';
+  const dark = theme === 'dark';
+  els.themeToggle.textContent = dark ? '☀' : '☾';
+  els.themeToggle.title = dark ? '라이트 모드로 바꾸기' : '다크 모드로 바꾸기';
+  els.themeToggle.setAttribute('aria-label', els.themeToggle.title);
+  const color = dark ? '#171717' : '#fafafa';
   if (document.documentElement.dataset.theme) {
     document.querySelectorAll('meta[name="theme-color"]').forEach((m) => { m.content = color; });
   }
