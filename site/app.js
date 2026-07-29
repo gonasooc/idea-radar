@@ -361,6 +361,10 @@ function init() {
     } catch {}
   }
 
+  document.getElementById('brand').addEventListener('click', () => {
+    ssSet(SS_SCROLL, '0');
+    ssSet(SS_SHOWHN, '0');
+  });
   els.showhnToggle.addEventListener('click', () => {
     ssSet(SS_SHOWHN, ssGet(SS_SHOWHN) === '1' ? '0' : '1');
     renderShowhn();
