@@ -39,7 +39,12 @@ function parseHomeProducts(html: string, sitemap: Map<string, string>): Map<stri
   const raw = sliceBalanced(flight, i + '"products":'.length)
   if (!raw) throw new SourceError('parse', 'home products bracket matching failed')
   const products = JSON.parse(raw) as HomeProduct[]
-  if (!Array.isArray(products) || products.length < 1) throw new SourceError('parse', 'home products empty')
+  if (!Array.isArray(products)) throw new SourceError('parse', 'home products is not an array')
+  // 빈 배열은 파싱 실패가 아니다. 2026-07-30 사이트 개편으로 이 컴포넌트("방금 올라온 프로덕트")가
+  // 탭 방식(인기순/최신순/토론 많은)이 되면서 SSR 페이로드가 항상 []로 오고, 실제 제품은
+  // 렌더된 RSC 엘리먼트 트리로만 남았다. 발견의 정본은 어차피 sitemap이고(spec 함정 1),
+  // "조용히 0건"은 아래 H15 단언이 따로 잡는다. 여기서 throw 하면 매 실행 경고가 뜬다.
+  if (products.length === 0) return new Map()
   for (const p of products) {
     const ok =
       typeof p.slug === 'string' &&
