@@ -1,61 +1,61 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-30T01:28:23.037Z",
+  "updatedAt": "2026-07-30T05:50:42.509Z",
   "lastCollectedDate": "2026-07-30",
   "months": [
     {
       "key": "2026-07",
       "hasShowhn": true,
       "counts": {
-        "geeknews-show": 64,
+        "geeknews-show": 65,
         "disquiet": 40,
-        "syde": 21,
+        "syde": 23,
         "jocohunt": 64,
-        "ilddan": 23,
+        "ilddan": 24,
         "producthunt": 70,
-        "showhn": 702
+        "showhn": 713
       }
     }
   ],
   "sources": {
     "geeknews-show": {
-      "lastSuccessAt": "2026-07-30T01:28:23.037Z",
+      "lastSuccessAt": "2026-07-30T05:50:42.509Z",
       "lastRawCount": 40,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "disquiet": {
-      "lastSuccessAt": "2026-07-30T01:28:23.037Z",
+      "lastSuccessAt": "2026-07-30T05:50:42.509Z",
       "lastRawCount": 40,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "syde": {
-      "lastSuccessAt": "2026-07-30T01:28:23.037Z",
+      "lastSuccessAt": "2026-07-30T05:50:42.509Z",
       "lastRawCount": 20,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "jocohunt": {
-      "lastSuccessAt": "2026-07-30T01:28:23.037Z",
+      "lastSuccessAt": "2026-07-30T05:50:42.509Z",
       "lastRawCount": 170,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "ilddan": {
-      "lastSuccessAt": "2026-07-30T01:28:23.037Z",
+      "lastSuccessAt": "2026-07-30T05:50:42.509Z",
       "lastRawCount": 23,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "producthunt": {
-      "lastSuccessAt": "2026-07-30T01:28:23.037Z",
+      "lastSuccessAt": "2026-07-30T05:50:42.509Z",
       "lastRawCount": 50,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "showhn": {
-      "lastSuccessAt": "2026-07-30T01:28:23.037Z",
+      "lastSuccessAt": "2026-07-30T05:50:42.509Z",
       "lastRawCount": 635,
       "consecutiveFailures": 0,
       "lastError": null
