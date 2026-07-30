@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-30T05:50:42.509Z",
+  "updatedAt": "2026-07-30T06:55:49.857Z",
   "lastCollectedDate": "2026-07-30",
   "months": [
     {
@@ -13,7 +13,7 @@
         "jocohunt": 64,
         "ilddan": 24,
         "producthunt": 70,
-        "showhn": 713
+        "showhn": 717
       }
     }
   ],
@@ -55,8 +55,8 @@
       "lastError": null
     },
     "showhn": {
-      "lastSuccessAt": "2026-07-30T05:50:42.509Z",
-      "lastRawCount": 635,
+      "lastSuccessAt": "2026-07-30T06:55:49.857Z",
+      "lastRawCount": 633,
       "consecutiveFailures": 0,
       "lastError": null
     }
