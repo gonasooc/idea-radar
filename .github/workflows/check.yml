@@ -1,0 +1,54 @@
+# 코드가 main에 닿는 경로에만 두는 게이트다. collect.yml에는 절대 붙이지 않는다 —
+# 타입 에러가 수집을 막으면 그날 7개 소스의 수집분이 통째로 날아간다 (CLAUDE.md 1).
+#
+# Node 타입 스트리핑은 타입 검사를 하지 않는다. tsconfig의 erasableSyntaxOnly가
+# enum/namespace/파라미터 프로퍼티를 잡아 주지만, tsc를 돌리는 곳이 없으면 무의미하다.
+# 그런 문법이 하나 들어가면 run.ts 최상단 import에서 로드 시점에 죽는다.
+name: check
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - 'test/**'
+      - 'site/app.js'
+      - 'tsconfig.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/check.yml'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      # devDependencies만 설치한다. 런타임 의존성은 0개이고 collect.yml은 npm을 쓰지 않는다.
+      - run: npm ci
+
+      - name: typecheck
+        run: npx tsc --noEmit
+
+      # 디렉터리 인자(node --test test/)는 Node가 모듈 경로로 읽어 실패한다. 글롭이어야 한다.
+      - name: test
+        run: node --test 'test/*.test.ts'
+
+      - name: verify committed data
+        run: node src/verify.ts

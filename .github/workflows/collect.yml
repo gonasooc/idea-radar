@@ -51,6 +51,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           for attempt in 1 2 3; do
+            # 매 반복에서 검증한다 — --replay 결과도 여기서 걸러야 한다.
+            # run.ts는 절대 non-zero로 끝나지 않으므로 셸이 replay 실패를 알 방법이 이것뿐이다.
+            node src/verify.ts || exit 1
             git add -A
             if git diff --cached --quiet; then
               echo "no changes"

@@ -1,0 +1,130 @@
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import { mkdtemp, readFile, writeFile, mkdir } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import type { Item } from '../src/types.ts'
+
+// store.ts는 로드 시점에 ROOT를 확정하므로 env를 먼저 세우고 동적 import 해야 한다.
+const ROOT = await mkdtemp(path.join(tmpdir(), 'idea-radar-test-'))
+process.env.IDEA_RADAR_ROOT = ROOT
+const store = await import('../src/store.ts')
+
+await mkdir(store.DATA_DIR, { recursive: true })
+await mkdir(store.SEEN_DIR, { recursive: true })
+
+function item(over: Partial<Item> & Pick<Item, 'id' | 'collectedAt'>): Item {
+  return {
+    source: 'disquiet',
+    title: 't',
+    description: '',
+    url: 'https://example.com/x',
+    collectedDate: over.collectedAt.slice(0, 10),
+    ...over,
+  } as Item
+}
+
+// 항목 1개 = 1줄이라야 git 일일 델타가 추가된 줄만큼으로 줄고 diff로 그날 유입이 보인다 (SPEC 4.4).
+test('serializeRows: 항목 1개 = 1줄, JSON 왕복', () => {
+  assert.equal(store.serializeRows([]), '[]\n')
+
+  const rows = [{ id: 'a' }, { id: 'b' }, { id: 'c' }]
+  const text = store.serializeRows(rows)
+  assert.deepEqual(JSON.parse(text), rows)
+  assert.equal(text.trim().split('\n').length, rows.length + 2) // [ + 3행 + ]
+  assert.ok(text.endsWith('\n'))
+})
+
+test('serializeScores: 키 1개 = 1줄, 키 정렬, JSON 왕복', () => {
+  assert.equal(store.serializeScores({}), '{}\n')
+
+  const text = store.serializeScores({ b: 2, a: 1, c: 30 })
+  assert.deepEqual(JSON.parse(text), { a: 1, b: 2, c: 30 })
+  assert.deepEqual(Object.keys(JSON.parse(text)), ['a', 'b', 'c'])
+  assert.equal(text.trim().split('\n').length, 5) // { + 3행 + }
+})
+
+// 인덱스를 못 읽었는데 빈 Set으로 진행하면 아카이브 전체가 중복된다 (SPEC 3).
+// 그래서 missing과 corrupt를 ok와 반드시 구분해야 한다.
+test('loadSeen: 파일이 없으면 missing (ok 아님)', async () => {
+  const load = await store.loadSeen('syde')
+  assert.equal(load.state, 'missing')
+  assert.equal(load.ids.size, 0)
+})
+
+test('loadSeen: 배열이 아니면 corrupt', async () => {
+  await writeFile(path.join(store.SEEN_DIR, 'ilddan.json'), '{"a":1}', 'utf8')
+  assert.equal((await store.loadSeen('ilddan')).state, 'corrupt')
+})
+
+test('loadSeen: 깨진 JSON이면 corrupt', async () => {
+  await writeFile(path.join(store.SEEN_DIR, 'jocohunt.json'), '[1,2,', 'utf8')
+  assert.equal((await store.loadSeen('jocohunt')).state, 'corrupt')
+})
+
+test('loadSeen: 문자열 아닌 원소가 섞이면 corrupt', async () => {
+  await writeFile(path.join(store.SEEN_DIR, 'producthunt.json'), '["1",2]', 'utf8')
+  assert.equal((await store.loadSeen('producthunt')).state, 'corrupt')
+})
+
+test('writeSeen → loadSeen 왕복: 정렬·중복 제거되고 ok', async () => {
+  await store.writeSeen('disquiet', new Set(['7536', '100', '7536', '20']))
+  const load = await store.loadSeen('disquiet')
+  assert.equal(load.state, 'ok')
+  assert.deepEqual([...load.ids].sort(), ['100', '20', '7536'])
+
+  const raw = JSON.parse(await readFile(path.join(store.SEEN_DIR, 'disquiet.json'), 'utf8'))
+  assert.deepEqual(raw, ['100', '20', '7536']) // 파일에도 정렬되어 저장된다
+})
+
+test('writeShard → readShard 왕복', async () => {
+  const items = [item({ id: 'disquiet:1', collectedAt: '2026-07-29T10:00:00.000Z' })]
+  await store.writeShard('2026-07', false, items)
+  assert.deepEqual(await store.readShard('2026-07', false), items)
+})
+
+test('readShard: 없는 샤드는 빈 배열', async () => {
+  assert.deepEqual(await store.readShard('1999-01', false), [])
+})
+
+test('listMonths: 최신순 정렬, showhn 샤드 유무를 표시', async () => {
+  await store.writeShard('2026-06', false, [])
+  await store.writeShard('2026-07', true, [])
+  const months = await store.listMonths()
+  assert.deepEqual(months.map((m) => m.key), ['2026-07', '2026-06'])
+  assert.equal(months.find((m) => m.key === '2026-07')!.hasShowhn, true)
+  assert.equal(months.find((m) => m.key === '2026-06')!.hasShowhn, false)
+})
+
+// listMonths가 sidecar를 월 샤드로 오인하면 manifest.months에 쓰레기 항목이 생긴다.
+test('listMonths: showhn-scores.json을 월 샤드로 오인하지 않는다', async () => {
+  await store.writeShowhnScores({ '123': 4 })
+  const months = await store.listMonths()
+  assert.ok(months.every((m) => /^\d{4}-\d{2}$/.test(m.key)))
+})
+
+test('rebuildLatest: 30일 컷오프를 적용하고 Show HN을 제외한다', async () => {
+  const now = Date.parse('2026-07-30T00:00:00.000Z')
+  const iso = (daysAgo: number) => new Date(now - daysAgo * 24 * 3600 * 1000).toISOString()
+
+  await store.writeShard('2026-07', false, [
+    item({ id: 'disquiet:new', collectedAt: iso(1) }),
+    item({ id: 'disquiet:edge', collectedAt: iso(29) }),
+    item({ id: 'disquiet:old', collectedAt: iso(31) }),
+  ])
+  await store.writeShard('2026-07', true, [
+    item({ id: 'showhn:1', source: 'showhn', collectedAt: iso(1) }),
+  ])
+
+  await store.rebuildLatest(now)
+  const latest = JSON.parse(await readFile(path.join(store.DATA_DIR, 'latest.json'), 'utf8')) as Item[]
+  assert.deepEqual(latest.map((i) => i.id), ['disquiet:new', 'disquiet:edge'])
+  assert.ok(latest.every((i) => i.source !== 'showhn'))
+})
+
+// 커밋 직전 게이트가 기대는 함수다. 깨진 JSON을 통과시키면 사이트가 흰 화면이 된다.
+test('verifyDataDir: 깨진 JSON을 잡는다', async () => {
+  await store.verifyDataDir() // 여기까지는 전부 유효
+  await writeFile(path.join(store.DATA_DIR, '2026-05.json'), '[{"id":', 'utf8')
+  await assert.rejects(() => store.verifyDataDir(), /not valid JSON/)
+})
