@@ -8,7 +8,8 @@ idea-radar 작업 시 지켜야 할 불변식. 구현 전 [SPEC.md](SPEC.md)를 
 2. **신규 판정은 `collectedAt` 기준이다.** `publishedAt`으로 필터링하지 않는다. 여러 소스의 발행일이 배치·featured·지연 때문에 신뢰 불가다.
 3. **중복 제거는 `state/seen/{source}.json` 전량 인덱스로 한다.** "최근 N개월 샤드만 읽기"로 바꾸지 않는다. 인덱스를 못 읽으면 빈 Set으로 진행하지 말고 그 소스를 실패 처리한다.
 4. **`parsedCount === 0`은 throw, `newItemCount === 0`은 정상.** 이 둘을 섞으면 하루 1~2건짜리 소스가 매일 실패로 뜨거나, 파싱이 깨져도 조용히 넘어간다.
-5. **기록된 항목은 불변이다.** 같은 id 재관측 시 전량 무시한다.
+5. **기록된 항목은 불변이다.** 같은 id 재관측 시 전량 무시한다. 유일한 예외는 `site/data/showhn-scores.json`이다 — 아카이브 항목의 `score`는 그대로 두고, 최근 96시간 창의 현재 점수만 이 별도 파일에 매 실행 재작성한다. 이유는 [SPEC.md](SPEC.md) 2.2에 있다. **항목에 점수를 다시 써넣는 리팩터링 금지.**
+6. **`run.ts`는 non-zero로 끝내지 않지만 `src/verify.ts`는 끝낸다.** 커밋 직전 게이트라 셸이 실패를 알아야 한다. 이 검증은 push 재시도 루프 **안**에 있어야 한다 — 밖으로 빼면 `--replay`가 깨져도 그대로 커밋된다.
 
 ## 가공하지 않는다
 
@@ -18,7 +19,17 @@ idea-radar 작업 시 지켜야 할 불변식. 구현 전 [SPEC.md](SPEC.md)를 
 
 ## 의존성
 
-런타임 npm 의존성 0개를 유지한다. Node 24 타입 스트리핑으로 `.ts`를 직접 실행하므로 **지울 수 있는 문법만** 쓴다: `enum`, `namespace`, 파라미터 프로퍼티 금지.
+**런타임** npm 의존성 0개를 유지한다. `package.json`의 `dependencies`는 비어 있어야 하고, `src/`는 `node:` 내장과 상대경로 `.ts`만 import 한다. `typescript`·`@types/node`는 devDependencies이고 `check.yml`에서만 쓴다 — `collect.yml`은 `npm`을 실행하지 않는다.
+
+Node 24 타입 스트리핑으로 `.ts`를 직접 실행하므로 **지울 수 있는 문법만** 쓴다: `enum`, `namespace`, 파라미터 프로퍼티 금지. 타입 스트리핑은 타입 검사를 하지 않는다 — 그래서 CI에서 `tsc --noEmit`을 돌린다. 이 문법이 하나 들어가면 `run.ts` 최상단 import에서 로드 시점에 죽어 그날 7개 소스가 통째로 날아간다.
+
+## 고치기 전에 돌릴 것
+
+```bash
+npm ci && npx tsc --noEmit && node --test 'test/*.test.ts' && node src/verify.ts
+```
+
+`node --test test/`는 동작하지 않는다 — Node가 디렉터리를 모듈 경로로 읽는다. 반드시 글롭이어야 한다.
 
 ## 소스를 추가하고 싶을 때
 
