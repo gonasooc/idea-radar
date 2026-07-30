@@ -129,6 +129,13 @@ export const showhn: Collector = {
     if (emptyDesc < 0.4 || emptyDesc > 0.75) {
       throw new SourceError('parse', `empty description ratio ${emptyDesc.toFixed(2)} outside 0.40–0.75 — story_text parsing broken`)
     }
-    return { parsedCount: hits.length, items, warnings }
+
+    // 창 안의 모든 hit에 대한 *현재* points. 아카이브 항목의 score는 수집 시점에 얼어붙으므로
+    // (대부분 게시 직후에 잡혀 1~2점) 정렬에 쓸 수 없다. 이미 받은 응답에서 뽑으니 추가 요청은 없다.
+    const scores: Record<string, number> = {}
+    for (const hit of hits) {
+      if (typeof hit.points === 'number') scores[hit.objectID] = hit.points
+    }
+    return { parsedCount: hits.length, items, warnings, scores }
   },
 }

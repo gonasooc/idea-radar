@@ -13,6 +13,7 @@ import {
   writeManifest,
   writeSeen,
   writeShard,
+  writeShowhnScores,
 } from './store.ts'
 import { SOURCE_KEYS, SourceError } from './types.ts'
 import type { Collector, ErrorKind, Item, Manifest, MonthEntry, RawItem, SourceKey, SourceStatus } from './types.ts'
@@ -45,6 +46,7 @@ type SourceRun = {
   items: RawItem[]
   warnings: string[]
   error?: RunError
+  scores?: Record<string, number>
 }
 
 type RunFile = {
@@ -71,11 +73,11 @@ function toRunError(e: unknown): RunError {
   return { kind: 'parse', message: e instanceof Error ? e.message : String(e) }
 }
 
-function nativeId(key: SourceKey, id: string): string {
+export function nativeId(key: SourceKey, id: string): string {
   return id.slice(key.length + 1)
 }
 
-function dedupeInRun(items: RawItem[]): RawItem[] {
+export function dedupeInRun(items: RawItem[]): RawItem[] {
   const byId = new Map<string, RawItem>()
   for (const it of items) if (!byId.has(it.id)) byId.set(it.id, it)
   return [...byId.values()]
@@ -98,7 +100,14 @@ async function collectAll(keys: SourceKey[], seed: boolean, dryRun: boolean): Pr
     try {
       const result = await collector.collect({ seen: seen.ids, seed })
       if (result.parsedCount === 0) throw new SourceError('parse', 'parsedCount is 0')
-      runs.push({ key, ok: true, parsedCount: result.parsedCount, items: dedupeInRun(result.items), warnings: result.warnings })
+      runs.push({
+        key,
+        ok: true,
+        parsedCount: result.parsedCount,
+        items: dedupeInRun(result.items),
+        warnings: result.warnings,
+        ...(result.scores ? { scores: result.scores } : {}),
+      })
     } catch (e) {
       runs.push({ key, ok: false, parsedCount: 0, items: [], warnings: [], error: toRunError(e) })
     }
@@ -275,6 +284,12 @@ async function main(): Promise<void> {
   }
 
   const { newCounts, touchedMonths } = await merge(runs, collectedAt, seed)
+
+  // showhn이 성공했을 때만 점수 파일을 갱신한다. 실패했으면 이전 파일을 그대로 둔다 —
+  // 지우거나 비우면 실패 1회가 Show HN 목록의 정렬 품질을 조용히 떨어뜨린다.
+  const showhnRun = runs.find((r) => r.key === 'showhn')
+  if (showhnRun?.ok && showhnRun.scores) await writeShowhnScores(showhnRun.scores)
+
   const manifest = await buildManifest(runs, runAt, touchedMonths)
   await writeManifest(manifest)
   await rebuildLatest(Date.parse(runAt))
@@ -283,14 +298,17 @@ async function main(): Promise<void> {
   report(runs, newCounts, manifest, seed)
 }
 
-try {
-  await main()
-} catch (e) {
-  console.error(e)
-  ghWarning(`run.ts crashed before completing: ${e instanceof Error ? e.message : String(e)}`)
-  ghOutput('data_valid', 'false')
-  ghOutput('failed_sources', SOURCE_KEYS.join(','))
-  ghOutput('alert_sources', '')
-  ghOutput('all_failed', 'true')
+// 테스트가 dedupeInRun/nativeId를 import 할 수 있어야 하므로 실행은 엔트리일 때만 한다.
+if (import.meta.main) {
+  try {
+    await main()
+  } catch (e) {
+    console.error(e)
+    ghWarning(`run.ts crashed before completing: ${e instanceof Error ? e.message : String(e)}`)
+    ghOutput('data_valid', 'false')
+    ghOutput('failed_sources', SOURCE_KEYS.join(','))
+    ghOutput('alert_sources', '')
+    ghOutput('all_failed', 'true')
+  }
+  process.exitCode = 0
 }
-process.exitCode = 0

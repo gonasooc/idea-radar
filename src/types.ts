@@ -29,6 +29,8 @@ export type CollectResult = {
   parsedCount: number
   items: RawItem[]
   warnings: string[]
+  // 아카이브 항목 밖에서 갱신되는 현재 점수. showhn만 채운다 (SPEC 2.2 예외).
+  scores?: Record<string, number>
 }
 
 export type ErrorKind = 'http' | 'parse' | 'timeout'

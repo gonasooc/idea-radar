@@ -14,6 +14,14 @@ export function serializeRows(rows: unknown[]): string {
   return '[\n' + rows.map((r, i) => (i === 0 ? '' : ',') + JSON.stringify(r)).join('\n') + '\n]\n'
 }
 
+// 키 1개 = 1줄, 키 정렬. serializeRows와 같은 이유다 — 이 파일은 매 실행 전체가 다시 쓰이므로
+// 줄 단위로 나눠야 git 델타가 '점수가 바뀐 줄'만큼으로 줄어든다.
+export function serializeScores(scores: Record<string, number>): string {
+  const keys = Object.keys(scores).sort()
+  if (keys.length === 0) return '{}\n'
+  return '{\n' + keys.map((k, i) => (i === 0 ? '' : ',') + JSON.stringify(k) + ':' + scores[k]).join('\n') + '\n}\n'
+}
+
 export async function writeJsonAtomic(file: string, content: string): Promise<void> {
   await mkdir(path.dirname(file), { recursive: true })
   const tmp = file + '.tmp'
@@ -98,6 +106,12 @@ export async function readManifest(): Promise<Manifest | undefined> {
 
 export async function writeManifest(m: Manifest): Promise<void> {
   await writeJsonAtomic(path.join(DATA_DIR, 'manifest.json'), JSON.stringify(m, null, 2) + '\n')
+}
+
+export const SHOWHN_SCORES_FILE = 'showhn-scores.json'
+
+export async function writeShowhnScores(scores: Record<string, number>): Promise<void> {
+  await writeJsonAtomic(path.join(DATA_DIR, SHOWHN_SCORES_FILE), serializeScores(scores))
 }
 
 export async function rebuildLatest(nowMs: number): Promise<void> {
