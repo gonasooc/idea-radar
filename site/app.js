@@ -9,13 +9,15 @@ const SOURCES = {
   producthunt: 'Product Hunt',
   showhn: 'Show HN',
 };
-const LS_SEEN = 'idea-radar.lastSeenAt';
 const LS_CACHE = 'idea-radar.cache';
 const LS_THEME = 'idea-radar.theme';
+const LS_DAYS = 'idea-radar.feedDays';
 const SS_SCROLL = 'idea-radar.scrollY';
 const SS_SHOWHN = 'idea-radar.showhnOpen';
-const AUTO_SEEN_MS = 120000;
 const STALE_MS = 26 * 3600 * 1000;
+const FEED_DAYS = [['1', '1일'], ['3', '3일'], ['7', '7일'], ['30', '30일']];
+const FEED_CAP = 300;
+const SHOWHN_CAP = 200;
 
 const $ = (id) => document.getElementById(id);
 const els = {
@@ -23,8 +25,9 @@ const els = {
   q: $('q'),
   chips: $('chips'),
   sourceChips: $('sourceChips'),
+  dayChips: $('dayChips'),
   periodChips: $('periodChips'),
-  visitLine: $('visitLine'),
+  countLine: $('countLine'),
   list: $('list'),
   showhnBlock: $('showhnBlock'),
   showhnToggle: $('showhnToggle'),
@@ -39,14 +42,16 @@ const state = {
   query: '',
   searchSeq: 0,
   sourceFilter: null,
+  feedDays: '3',
+  feedExpanded: false,
   searchPeriod: '12',
   searchShowhn: false,
   showhnItems: null,
 };
 
 const kstDay = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', month: 'long', day: 'numeric', weekday: 'short' });
-const kstTime = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false });
 const kstFull = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul', dateStyle: 'short', timeStyle: 'short' });
+const kstISO = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' });
 
 function lsGet(key) {
   try { return localStorage.getItem(key); } catch { return null; }
@@ -87,17 +92,18 @@ function itemRow(item, opts) {
   return wrap;
 }
 
-function maxCollectedAt() {
-  let max = '';
-  for (const it of state.items) if (it.collectedAt > max) max = it.collectedAt;
-  return max;
+// 피드 범위는 KST 캘린더 날짜로만 정한다 — 방문 기록이나 실행 시각에 의존하지 않는다.
+// collectedDate가 이미 KST 날짜 문자열이라 문자열 비교로 끝난다.
+function feedCutoffDate() {
+  const today = kstISO.format(new Date());
+  const days = Number(state.feedDays);
+  if (days <= 1) return today;
+  return kstISO.format(new Date(Date.parse(`${today}T00:00:00+09:00`) - (days - 1) * 24 * 3600 * 1000));
 }
 
-function sinceCutoff() {
-  const seen = lsGet(LS_SEEN);
-  if (seen) return seen;
-  const base = state.manifest ? Date.parse(state.manifest.updatedAt) : Date.now();
-  return new Date(base - 24 * 3600 * 1000).toISOString();
+function feedDaysLabel() {
+  const found = FEED_DAYS.find(([value]) => value === state.feedDays);
+  return found ? found[1] : `${state.feedDays}일`;
 }
 
 function renderBanner() {
@@ -113,58 +119,52 @@ function renderBanner() {
   }
 }
 
-function renderVisitLine(total, shown) {
-  const seen = lsGet(LS_SEEN);
-  const filterNote = shown !== total ? ` · 표시 ${shown}건` : '';
-  if (!seen) {
-    els.visitLine.textContent = `처음 방문 · 최근 1일 새 항목 ${total}건${filterNote}`;
-    return;
-  }
-  const days = (Date.now() - Date.parse(seen)) / (24 * 3600 * 1000);
-  const ago = days < 1 ? '오늘 다시 방문' : `${Math.round(days)}일 만에 방문`;
-  els.visitLine.textContent = `${ago} · 새 항목 ${total}건${filterNote}`;
-}
-
 function renderFeed() {
   els.chips.hidden = true;
   els.list.textContent = '';
-  const since = sinceCutoff();
-  const all = state.items.filter((it) => it.collectedAt > since).sort((a, b) => (a.collectedAt < b.collectedAt ? 1 : -1));
-  const fresh = state.sourceFilter === null ? all : all.filter((it) => it.source === state.sourceFilter);
-  renderVisitLine(all.length, fresh.length);
+  renderDayChips();
+  const since = feedCutoffDate();
+  const all = state.items.filter((it) => it.collectedDate >= since).sort((a, b) => (a.collectedAt < b.collectedAt ? 1 : -1));
+  const shown = state.sourceFilter === null ? all : all.filter((it) => it.source === state.sourceFilter);
+  const filterNote = shown.length !== all.length ? ` · 표시 ${shown.length}건` : '';
+  els.countLine.textContent = `최근 ${feedDaysLabel()} ${all.length}건${filterNote}`;
 
-  if (fresh.length === 0) {
-    const at = state.manifest ? kstTime.format(new Date(state.manifest.updatedAt)) : '';
+  if (shown.length === 0) {
+    const at = state.manifest ? kstFull.format(new Date(state.manifest.updatedAt)) : '';
     const msg = state.sourceFilter !== null && all.length > 0
-      ? '선택한 소스에 새 항목 없음'
-      : at ? `오늘 ${at} 기준 새 항목 없음` : '데이터 로딩 중…';
+      ? '선택한 소스에 항목 없음'
+      : at ? `최근 ${feedDaysLabel()} 수집된 항목 없음 · 마지막 수집 ${at} KST` : '데이터 로딩 중…';
     els.list.appendChild(h('div', { class: 'empty', text: msg }));
   } else {
+    const visible = state.feedExpanded ? shown : shown.slice(0, FEED_CAP);
     let currentDate = '';
-    for (const it of fresh) {
+    for (const it of visible) {
       if (it.collectedDate !== currentDate) {
         currentDate = it.collectedDate;
         const label = kstDay.format(new Date(currentDate + 'T12:00:00+09:00'));
-        const count = fresh.filter((x) => x.collectedDate === currentDate).length;
+        const count = shown.filter((x) => x.collectedDate === currentDate).length;
         els.list.appendChild(h('div', { class: 'day-head', text: `${label} · ${count}건` }));
       }
       els.list.appendChild(itemRow(it));
     }
+    const rest = shown.length - visible.length;
+    if (rest > 0) {
+      els.list.appendChild(h('button', {
+        class: 'more-btn',
+        text: `남은 ${rest}건 보기`,
+        onclick: () => { state.feedExpanded = true; renderFeed(); },
+      }));
+    }
   }
 
-  const oldest = state.items[0];
-  if (lsGet(LS_SEEN) && oldest && lsGet(LS_SEEN) < oldest.collectedAt) {
-    els.footNote.textContent = '30일 이전 항목은 검색으로 찾을 수 있습니다';
-  } else {
-    els.footNote.textContent = '';
-  }
+  els.footNote.textContent = '30일 이전 항목은 검색으로 찾을 수 있습니다';
   els.showhnBlock.hidden = false
   renderShowhn();
 }
 
 function showhnMonthsNeeded() {
   if (!state.manifest) return [];
-  const since = sinceCutoff().slice(0, 7);
+  const since = feedCutoffDate().slice(0, 7);
   return state.manifest.months.filter((m) => m.hasShowhn && m.key >= since).map((m) => m.key);
 }
 
@@ -176,8 +176,8 @@ async function loadShowhn() {
     if (!res.ok) continue;
     for (const it of await res.json()) all.push(it);
   }
-  const since = sinceCutoff();
-  return all.filter((it) => it.collectedAt > since).sort((a, b) => (b.score || 0) - (a.score || 0));
+  const since = feedCutoffDate();
+  return all.filter((it) => it.collectedDate >= since).sort((a, b) => (b.score || 0) - (a.score || 0));
 }
 
 function renderShowhnItems(expandAll) {
@@ -185,13 +185,15 @@ function renderShowhnItems(expandAll) {
   els.showhnList.textContent = '';
   els.showhnList.hidden = false;
   if (items.length === 0) {
-    els.showhnList.appendChild(h('div', { class: 'empty', text: '지난 방문 이후 Show HN 새 항목 없음' }));
+    els.showhnList.appendChild(h('div', { class: 'empty', text: `최근 ${feedDaysLabel()} Show HN 항목 없음` }));
     return;
   }
-  const top = expandAll ? items : items.slice(0, 15);
+  const top = expandAll ? items.slice(0, SHOWHN_CAP) : items.slice(0, 15);
   for (const it of top) els.showhnList.appendChild(itemRow(it, { score: it.score || 0 }));
   if (!expandAll && items.length > 15) {
     els.showhnList.appendChild(h('button', { class: 'more-btn', text: `전체 ${items.length}건 보기`, onclick: () => renderShowhnItems(true) }));
+  } else if (items.length > top.length) {
+    els.showhnList.appendChild(h('div', { class: 'status', text: `점수순 상위 ${SHOWHN_CAP}건 표시 (전체 ${items.length}건)` }));
   }
 }
 
@@ -219,17 +221,37 @@ function chipButton(label, isOn, onClick) {
 
 function renderSourceChips() {
   els.sourceChips.textContent = '';
-  els.sourceChips.appendChild(chipButton('전체', state.sourceFilter === null, () => { state.sourceFilter = null; render(); }));
+  els.sourceChips.appendChild(chipButton('전체', state.sourceFilter === null, () => {
+    state.sourceFilter = null;
+    state.feedExpanded = false;
+    render();
+  }));
   for (const [key, label] of Object.entries(SOURCES)) {
     if (key === 'showhn') continue;
     els.sourceChips.appendChild(chipButton(label, state.sourceFilter === key, () => {
       state.sourceFilter = state.sourceFilter === key ? null : key;
+      state.feedExpanded = false;
+      render();
+    }));
+  }
+}
+
+function renderDayChips() {
+  els.dayChips.hidden = false;
+  els.dayChips.textContent = '';
+  for (const [value, label] of FEED_DAYS) {
+    els.dayChips.appendChild(chipButton(label, state.feedDays === value, () => {
+      state.feedDays = value;
+      state.feedExpanded = false;
+      state.showhnItems = null;
+      lsSet(LS_DAYS, value);
       render();
     }));
   }
 }
 
 function renderSearchChips() {
+  els.dayChips.hidden = true;
   els.chips.hidden = false;
   els.periodChips.textContent = '';
   for (const [value, label] of [['1', '1개월'], ['3', '3개월'], ['12', '12개월'], ['all', '전체 기간']]) {
@@ -261,7 +283,8 @@ async function runSearch() {
   const seq = ++state.searchSeq;
   els.list.textContent = '';
   els.showhnBlock.hidden = true;
-  els.visitLine.textContent = '';
+  els.countLine.textContent = '';
+  els.footNote.textContent = '';
   const status = h('div', { class: 'status', text: '검색 중…' });
   const results = h('div', {});
   els.list.appendChild(status);
@@ -333,20 +356,6 @@ function toggleTheme() {
   syncTheme();
 }
 
-function scheduleAutoSeen() {
-  let timer = null;
-  const arm = () => {
-    if (timer) clearTimeout(timer);
-    if (document.visibilityState !== 'visible') return;
-    timer = setTimeout(() => {
-      const max = maxCollectedAt();
-      if (max) lsSet(LS_SEEN, max);
-    }, AUTO_SEEN_MS);
-  };
-  document.addEventListener('visibilitychange', arm);
-  arm();
-}
-
 function restoreScroll() {
   const y = Number(ssGet(SS_SCROLL) || 0);
   if (y > 0) requestAnimationFrame(() => window.scrollTo(0, y));
@@ -375,6 +384,10 @@ async function refresh() {
 
 function init() {
   history.scrollRestoration = 'manual';
+
+  const savedDays = lsGet(LS_DAYS);
+  if (savedDays && FEED_DAYS.some(([value]) => value === savedDays)) state.feedDays = savedDays;
+  try { localStorage.removeItem('idea-radar.lastSeenAt'); } catch {}
 
   const cached = lsGet(LS_CACHE);
   if (cached) {
@@ -419,7 +432,6 @@ function init() {
     });
   }, { passive: true });
 
-  scheduleAutoSeen();
   refresh();
 }
 

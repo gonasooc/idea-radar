@@ -234,6 +234,11 @@ button:disabled { opacity: 0.45; cursor: default; }
   margin: 7px 0;
 }
 
+/* display:flex가 UA의 [hidden]{display:none}을 이기므로 명시적으로 되돌린다 */
+.chip-row[hidden] {
+  display: none;
+}
+
 .chip-row button {
   position: relative;
   min-height: 30px;
@@ -261,7 +266,7 @@ button:disabled { opacity: 0.45; cursor: default; }
   transform: translateY(-50%);
 }
 
-#visitLine {
+#countLine {
   display: flex;
   align-items: center;
   gap: 7px;
@@ -271,7 +276,7 @@ button:disabled { opacity: 0.45; cursor: default; }
   font-size: 13px;
 }
 
-#visitLine:not(:empty)::before {
+#countLine:not(:empty)::before {
   width: 7px;
   height: 7px;
   flex: 0 0 auto;
