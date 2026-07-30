@@ -199,7 +199,8 @@ button:disabled { opacity: 0.45; cursor: default; }
   color: var(--accent-deep);
 }
 
-#banner {
+#banner,
+#sourceBanner.src-alert {
   margin: 8px 0;
   padding: 10px 12px;
   border: 1px solid var(--danger-line);
@@ -208,6 +209,17 @@ button:disabled { opacity: 0.45; cursor: default; }
   color: var(--danger-fg);
   font-size: 14px;
   font-weight: 500;
+}
+
+/* 소스 1~2개가 직전 실행에서만 실패한 것은 정상 범위다 (SPEC 4.2). 빨간불로 만들지 않는다. */
+#sourceBanner.src-warn {
+  margin: 8px 0;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--fg-dim);
+  font-size: 13px;
 }
 
 #q {
@@ -273,6 +285,22 @@ button:disabled { opacity: 0.45; cursor: default; }
   transform: translateY(-50%);
 }
 
+/* 배너를 지나쳐 스크롤해도 어느 소스가 멈췄는지 남는다. 색만 바꿔 레이아웃이 밀리지 않게 한다.
+   상태를 지고 있는 건 테두리가 아니라 글자색이다 — 라이트 6.57:1 / 다크 10.05:1로 본문 기준을 넘긴다.
+   테두리(1.72:1)는 보조 표시이고, 이 값은 컨테이너 경계인 --edge(1.74:1)와 같은 급이다. */
+.chip-row button[data-state="stalled"] {
+  border-color: var(--danger-line);
+  color: var(--danger-fg);
+}
+
+.chip-row button[data-state="stalled"].on {
+  border-color: var(--danger-fg);
+  background: var(--danger-fg);
+  color: var(--danger-bg);
+}
+
+.chip-row button[data-state="stalled"].on::before { background: var(--danger-bg); }
+
 #countLine {
   display: flex;
   align-items: center;
@@ -320,7 +348,8 @@ button:disabled { opacity: 0.45; cursor: default; }
 .day-head:first-child { border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
 
 .item-wrap { position: relative; }
-.item-wrap:last-child .row { border-bottom: 0; }
+/* last-of-type이라 뒤에 '남은 N건 보기' 버튼이 붙어도 마지막 행의 밑줄이 사라진다 */
+.item-wrap:last-of-type .row { border-bottom: 0; }
 
 .row {
   position: relative;
@@ -423,61 +452,6 @@ button:disabled { opacity: 0.45; cursor: default; }
   font-size: 14px;
   text-align: center;
 }
-
-#showhnBlock {
-  margin-top: 16px;
-}
-
-#showhnBlock > button {
-  position: relative;
-  width: 100%;
-  min-height: 42px;
-  padding: 10px 38px 10px 34px;
-  text-align: left;
-}
-
-#showhnBlock > button::before {
-  position: absolute;
-  top: 50%;
-  left: 14px;
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-  background: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
-  content: "";
-  transform: translateY(-50%);
-}
-
-#showhnBlock > button::after {
-  position: absolute;
-  top: 50%;
-  right: 14px;
-  color: var(--fg-faint);
-  content: "+";
-  font-size: 18px;
-  font-weight: 400;
-  transform: translateY(-52%);
-}
-
-#showhnBlock > button.on {
-  border-color: var(--line-strong);
-  background: var(--card);
-  color: var(--fg-secondary);
-}
-
-#showhnBlock > button.on::after { content: "−"; }
-
-#showhnList {
-  margin-top: 7px;
-  overflow: hidden;
-  border: 1px solid var(--edge);
-  border-radius: var(--radius-lg);
-  background: var(--card);
-  box-shadow: var(--shadow-raised);
-}
-
-#showhnList .item-wrap:last-of-type .row { border-bottom: 0; }
 
 .more-btn {
   width: calc(100% - 24px);

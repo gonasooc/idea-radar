@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#171717" media="(prefers-color-scheme: dark)">
-<meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#eff3f3" media="(prefers-color-scheme: light)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="idea-radar">
@@ -40,8 +40,9 @@
     <h1><a id="brand" href="."><img src="icon.svg" alt="" width="26" height="26">idea-radar</a></h1>
     <button id="themeToggle" type="button" aria-label="라이트/다크 모드 전환"></button>
   </div>
-  <div id="banner" hidden></div>
-  <input id="q" type="search" placeholder="검색 — 제목·한줄설명 (최근 12개월)" autocomplete="off">
+  <div id="banner" role="status" hidden></div>
+  <div id="sourceBanner" role="status" hidden></div>
+  <input id="q" type="search" placeholder="검색 — 제목·한줄설명 (최근 12개월)" autocomplete="off" aria-label="제목·한줄설명 검색">
   <div class="chip-row" id="sourceChips"></div>
   <div class="chip-row" id="dayChips"></div>
   <div id="chips" hidden>
@@ -50,10 +51,6 @@
   <div id="countLine"></div>
 </header>
 <main id="list"></main>
-<section id="showhnBlock" hidden>
-  <button id="showhnToggle" type="button">Show HN 펼치기</button>
-  <div id="showhnList" hidden></div>
-</section>
 <footer class="foot"><span id="footNote"></span></footer>
 <script src="app.js" defer></script>
 </body>

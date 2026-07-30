@@ -13,15 +13,18 @@ const LS_CACHE = 'idea-radar.cache';
 const LS_THEME = 'idea-radar.theme';
 const LS_DAYS = 'idea-radar.feedDays';
 const SS_SCROLL = 'idea-radar.scrollY';
-const SS_SHOWHN = 'idea-radar.showhnOpen';
 const STALE_MS = 26 * 3600 * 1000;
+// src/run.ts의 alert 규칙과 같은 값이어야 한다. 사이트와 Actions가 다른 말을 하면 안 된다.
+const ALERT_STALL_MS = 40 * 3600 * 1000;
 const FEED_DAYS = [['1', '1일'], ['3', '3일'], ['7', '7일'], ['30', '30일']];
 const FEED_CAP = 300;
+const SHOWHN_INITIAL = 30;
 const SHOWHN_CAP = 200;
 
 const $ = (id) => document.getElementById(id);
 const els = {
   banner: $('banner'),
+  sourceBanner: $('sourceBanner'),
   q: $('q'),
   chips: $('chips'),
   sourceChips: $('sourceChips'),
@@ -29,9 +32,6 @@ const els = {
   periodChips: $('periodChips'),
   countLine: $('countLine'),
   list: $('list'),
-  showhnBlock: $('showhnBlock'),
-  showhnToggle: $('showhnToggle'),
-  showhnList: $('showhnList'),
   themeToggle: $('themeToggle'),
   footNote: $('footNote'),
 };
@@ -41,12 +41,13 @@ const state = {
   items: [],
   query: '',
   searchSeq: 0,
+  // null = 전체(Show HN 제외). Show HN은 물량이 나머지 전체의 5배라 '전체'에 섞지 않는다 (SPEC 6.2).
   sourceFilter: null,
   feedDays: '3',
   feedExpanded: false,
   searchPeriod: '12',
-  searchShowhn: false,
   showhnItems: null,
+  showhnLoading: false,
 };
 
 const kstDay = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', month: 'long', day: 'numeric', weekday: 'short' });
@@ -106,6 +107,10 @@ function feedDaysLabel() {
   return found ? found[1] : `${state.feedDays}일`;
 }
 
+function lastCollectedNote() {
+  return state.manifest ? `${kstFull.format(new Date(state.manifest.updatedAt))} KST` : '';
+}
+
 function renderBanner() {
   const m = state.manifest;
   if (!m) { els.banner.hidden = true; return; }
@@ -119,10 +124,56 @@ function renderBanner() {
   }
 }
 
+// 전역 배너(updatedAt 기준)는 수집 자체가 멈춘 것만 잡는다. 소스 1개가 죽고 나머지 6개가
+// 계속 돌면 updatedAt은 신선하니 배너가 안 뜨고, Actions도 40시간까지 조용하다 (SPEC 4.5).
+// 판정 규칙은 src/run.ts의 alert 규칙과 동일하게 맞춘다.
+function sourceHealth() {
+  const stalled = new Map();
+  const warned = new Map();
+  const sources = (state.manifest && state.manifest.sources) || {};
+  for (const [key, s] of Object.entries(sources)) {
+    if (!s || !(s.consecutiveFailures > 0)) continue;
+    const noRecentSuccess = !s.lastSuccessAt || Date.parse(s.lastSuccessAt) < Date.now() - ALERT_STALL_MS;
+    if (s.consecutiveFailures >= 2 && noRecentSuccess) stalled.set(key, s);
+    else warned.set(key, s);
+  }
+  return { stalled, warned };
+}
+
+// 차단(403/429)과 파싱 깨짐은 대응이 다르다 — kind/status를 반드시 남긴다 (SPEC 2.4).
+function errorNote(s) {
+  const e = s.lastError;
+  if (!e || !e.kind) return '';
+  return ` (${e.kind}${e.status ? ' ' + e.status : ''})`;
+}
+
+function renderSourceBanner(health) {
+  const stalled = [...health.stalled].map(([key, s]) => {
+    const at = s.lastSuccessAt ? `마지막 성공 ${kstFull.format(new Date(s.lastSuccessAt))} KST` : '성공 이력 없음';
+    return `${SOURCES[key] || key} 수집 멈춤 · ${at}${errorNote(s)}`;
+  });
+  if (stalled.length > 0) {
+    els.sourceBanner.textContent = stalled.join(' / ');
+    els.sourceBanner.className = 'src-alert';
+    els.sourceBanner.hidden = false;
+    return;
+  }
+  const warned = [...health.warned].map(([key, s]) => `${SOURCES[key] || key} 직전 실행 실패${errorNote(s)}`);
+  if (warned.length > 0) {
+    els.sourceBanner.textContent = warned.join(' / ');
+    els.sourceBanner.className = 'src-warn';
+    els.sourceBanner.hidden = false;
+    return;
+  }
+  els.sourceBanner.hidden = true;
+}
+
 function renderFeed() {
   els.chips.hidden = true;
-  els.list.textContent = '';
   renderDayChips();
+  if (state.sourceFilter === 'showhn') { renderShowhnFeed(); return; }
+
+  els.list.textContent = '';
   const since = feedCutoffDate();
   const all = state.items.filter((it) => it.collectedDate >= since).sort((a, b) => (a.collectedAt < b.collectedAt ? 1 : -1));
   const shown = state.sourceFilter === null ? all : all.filter((it) => it.source === state.sourceFilter);
@@ -130,10 +181,10 @@ function renderFeed() {
   els.countLine.textContent = `최근 ${feedDaysLabel()} ${all.length}건${filterNote}`;
 
   if (shown.length === 0) {
-    const at = state.manifest ? kstFull.format(new Date(state.manifest.updatedAt)) : '';
+    const at = lastCollectedNote();
     const msg = state.sourceFilter !== null && all.length > 0
       ? '선택한 소스에 항목 없음'
-      : at ? `최근 ${feedDaysLabel()} 수집된 항목 없음 · 마지막 수집 ${at} KST` : '데이터 로딩 중…';
+      : at ? `최근 ${feedDaysLabel()} 수집된 항목 없음 · 마지막 수집 ${at}` : '데이터 로딩 중…';
     els.list.appendChild(h('div', { class: 'empty', text: msg }));
   } else {
     const visible = state.feedExpanded ? shown : shown.slice(0, FEED_CAP);
@@ -147,19 +198,64 @@ function renderFeed() {
       }
       els.list.appendChild(itemRow(it));
     }
-    const rest = shown.length - visible.length;
-    if (rest > 0) {
-      els.list.appendChild(h('button', {
-        class: 'more-btn',
-        text: `남은 ${rest}건 보기`,
-        onclick: () => { state.feedExpanded = true; renderFeed(); },
-      }));
-    }
+    appendMoreButton(shown.length - visible.length);
   }
 
   els.footNote.textContent = '30일 이전 항목은 검색으로 찾을 수 있습니다';
-  els.showhnBlock.hidden = false
-  renderShowhn();
+}
+
+function appendMoreButton(rest) {
+  if (rest <= 0) return;
+  els.list.appendChild(h('button', {
+    class: 'more-btn',
+    text: `남은 ${rest}건 보기`,
+    onclick: () => { state.feedExpanded = true; render(); },
+  }));
+}
+
+// Show HN은 점수 내림차순이다 — 날짜 헤더를 붙이지 않는다. 하루 140~165건이라 역시간순으로
+// 늘어놓으면 훑을 수 없고, 이 화면의 목적이 '많은 것 중 좋은 것'이다.
+function renderShowhnFeed() {
+  els.list.textContent = '';
+  els.footNote.textContent = '30일 이전 항목은 검색으로 찾을 수 있습니다';
+
+  if (state.showhnItems === null) {
+    els.countLine.textContent = `최근 ${feedDaysLabel()} Show HN`;
+    els.list.appendChild(h('div', { class: 'status', text: 'Show HN 불러오는 중…' }));
+    if (!state.showhnLoading) {
+      state.showhnLoading = true;
+      loadShowhn().then((items) => {
+        state.showhnLoading = false;
+        state.showhnItems = items;
+        if (state.sourceFilter === 'showhn' && !state.query) render();
+      }).catch(() => {
+        state.showhnLoading = false;
+        els.list.textContent = '';
+        els.list.appendChild(h('div', { class: 'empty', text: 'Show HN을 불러오지 못했습니다. 새로고침하세요.' }));
+      });
+    }
+    return;
+  }
+
+  const items = state.showhnItems;
+  els.countLine.textContent = `최근 ${feedDaysLabel()} Show HN ${items.length}건`;
+  if (items.length === 0) {
+    const at = lastCollectedNote();
+    els.list.appendChild(h('div', {
+      class: 'empty',
+      text: at ? `최근 ${feedDaysLabel()} Show HN 항목 없음 · 마지막 수집 ${at}` : `최근 ${feedDaysLabel()} Show HN 항목 없음`,
+    }));
+    return;
+  }
+
+  const ceiling = Math.min(items.length, SHOWHN_CAP);
+  const visible = items.slice(0, state.feedExpanded ? ceiling : Math.min(ceiling, SHOWHN_INITIAL));
+  for (const it of visible) els.list.appendChild(itemRow(it, { score: it.score || 0 }));
+  if (visible.length < ceiling) {
+    appendMoreButton(ceiling - visible.length);
+  } else if (items.length > ceiling) {
+    els.list.appendChild(h('div', { class: 'status', text: `점수순 상위 ${ceiling}건 표시 (전체 ${items.length}건)` }));
+  }
 }
 
 function showhnMonthsNeeded() {
@@ -168,71 +264,60 @@ function showhnMonthsNeeded() {
   return state.manifest.months.filter((m) => m.hasShowhn && m.key >= since).map((m) => m.key);
 }
 
+// 아카이브 항목의 score는 수집 시점 값이라 대부분 1~2점에 몰린다 (게시 직후에 잡히기 때문).
+// sidecar에 최근 96시간 창의 현재 점수가 있으면 그걸 쓰고, 창 밖 항목은 얼어붙은 값으로 폴백한다.
+function showhnScore(item, scores) {
+  const nativeId = item.id.slice('showhn:'.length);
+  const fresh = scores ? scores[nativeId] : undefined;
+  return typeof fresh === 'number' ? fresh : (item.score || 0);
+}
+
+async function fetchShowhnScores(v) {
+  try {
+    const res = await fetch(`data/showhn-scores.json?v=${v}`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
 async function loadShowhn() {
-  const months = showhnMonthsNeeded();
+  const v = encodeURIComponent(state.manifest.updatedAt);
+  const scores = await fetchShowhnScores(v);
   const all = [];
-  for (const key of months) {
-    const res = await fetch(`data/${key}.showhn.json?v=${encodeURIComponent(state.manifest.updatedAt)}`);
+  for (const key of showhnMonthsNeeded()) {
+    const res = await fetch(`data/${key}.showhn.json?v=${v}`);
     if (!res.ok) continue;
     for (const it of await res.json()) all.push(it);
   }
   const since = feedCutoffDate();
-  return all.filter((it) => it.collectedDate >= since).sort((a, b) => (b.score || 0) - (a.score || 0));
-}
-
-function renderShowhnItems(expandAll) {
-  const items = state.showhnItems || [];
-  els.showhnList.textContent = '';
-  els.showhnList.hidden = false;
-  if (items.length === 0) {
-    els.showhnList.appendChild(h('div', { class: 'empty', text: `최근 ${feedDaysLabel()} Show HN 항목 없음` }));
-    return;
-  }
-  const top = expandAll ? items.slice(0, SHOWHN_CAP) : items.slice(0, 15);
-  for (const it of top) els.showhnList.appendChild(itemRow(it, { score: it.score || 0 }));
-  if (!expandAll && items.length > 15) {
-    els.showhnList.appendChild(h('button', { class: 'more-btn', text: `전체 ${items.length}건 보기`, onclick: () => renderShowhnItems(true) }));
-  } else if (items.length > top.length) {
-    els.showhnList.appendChild(h('div', { class: 'status', text: `점수순 상위 ${SHOWHN_CAP}건 표시 (전체 ${items.length}건)` }));
-  }
-}
-
-function renderShowhn() {
-  const open = ssGet(SS_SHOWHN) === '1';
-  els.showhnToggle.textContent = open ? 'Show HN 접기' : 'Show HN 펼치기';
-  els.showhnToggle.classList.toggle('on', open);
-  if (!open) { els.showhnList.hidden = true; return; }
-  if (state.showhnItems) { renderShowhnItems(false); return; }
-  els.showhnList.hidden = false;
-  els.showhnList.textContent = '';
-  els.showhnList.appendChild(h('div', { class: 'status', text: 'Show HN 불러오는 중…' }));
-  loadShowhn().then((items) => {
-    state.showhnItems = items;
-    if (ssGet(SS_SHOWHN) === '1') renderShowhnItems(false);
-  }).catch(() => {
-    els.showhnList.textContent = '';
-    els.showhnList.appendChild(h('div', { class: 'empty', text: 'Show HN 로딩 실패' }));
-  });
+  return all
+    .filter((it) => it.collectedDate >= since)
+    .map((it) => ({ ...it, score: showhnScore(it, scores) }))
+    .sort((a, b) => b.score - a.score);
 }
 
 function chipButton(label, isOn, onClick) {
   return h('button', { class: isOn ? 'on' : '', 'aria-pressed': String(isOn), text: label, onclick: onClick });
 }
 
-function renderSourceChips() {
+function selectSource(key) {
+  state.sourceFilter = key;
+  state.feedExpanded = false;
+  render();
+}
+
+function renderSourceChips(health) {
   els.sourceChips.textContent = '';
-  els.sourceChips.appendChild(chipButton('전체', state.sourceFilter === null, () => {
-    state.sourceFilter = null;
-    state.feedExpanded = false;
-    render();
-  }));
+  els.sourceChips.appendChild(chipButton('전체', state.sourceFilter === null, () => selectSource(null)));
   for (const [key, label] of Object.entries(SOURCES)) {
-    if (key === 'showhn') continue;
-    els.sourceChips.appendChild(chipButton(label, state.sourceFilter === key, () => {
-      state.sourceFilter = state.sourceFilter === key ? null : key;
-      state.feedExpanded = false;
-      render();
-    }));
+    const chip = chipButton(label, state.sourceFilter === key, () => selectSource(state.sourceFilter === key ? null : key));
+    if (health.stalled.has(key)) {
+      chip.dataset.state = 'stalled';
+      chip.title = `${label} 수집이 멈춰 있습니다`;
+    }
+    els.sourceChips.appendChild(chip);
   }
 }
 
@@ -257,7 +342,6 @@ function renderSearchChips() {
   for (const [value, label] of [['1', '1개월'], ['3', '3개월'], ['12', '12개월'], ['all', '전체 기간']]) {
     els.periodChips.appendChild(chipButton(label, state.searchPeriod === value, () => { state.searchPeriod = value; render(); }));
   }
-  els.periodChips.appendChild(chipButton('Show HN 포함', state.searchShowhn, () => { state.searchShowhn = !state.searchShowhn; render(); }));
 }
 
 function searchShardList() {
@@ -269,10 +353,12 @@ function searchShardList() {
     const cutoff = new Date(Date.parse(state.manifest.updatedAt) - n * 31 * 24 * 3600 * 1000).toISOString().slice(0, 7);
     filtered = months.filter((m) => m.key >= cutoff);
   }
+  // Show HN 샤드는 나머지 전체의 5배라 Show HN 칩을 골랐을 때만 읽는다.
+  const showhnOnly = state.sourceFilter === 'showhn';
   const shards = [];
   for (const m of filtered) {
-    shards.push(`data/${m.key}.json`);
-    if (state.searchShowhn && m.hasShowhn) shards.push(`data/${m.key}.showhn.json`);
+    if (!showhnOnly) shards.push(`data/${m.key}.json`);
+    else if (m.hasShowhn) shards.push(`data/${m.key}.showhn.json`);
   }
   return shards;
 }
@@ -282,7 +368,6 @@ async function runSearch() {
   const q = state.query.toLowerCase();
   const seq = ++state.searchSeq;
   els.list.textContent = '';
-  els.showhnBlock.hidden = true;
   els.countLine.textContent = '';
   els.footNote.textContent = '';
   const status = h('div', { class: 'status', text: '검색 중…' });
@@ -308,7 +393,7 @@ async function runSearch() {
           if (seq !== state.searchSeq) return;
           for (let i = items.length - 1; i >= 0; i--) {
             const it = items[i];
-            if (state.sourceFilter !== null && it.source !== state.sourceFilter && !(it.source === 'showhn' && state.searchShowhn)) continue;
+            if (state.sourceFilter !== null && it.source !== state.sourceFilter) continue;
             if (!(it.title.toLowerCase().includes(q) || it.description.toLowerCase().includes(q))) continue;
             matched++;
             if (matched <= 300) slots[idx].appendChild(itemRow(it, { showDate: true }));
@@ -325,8 +410,10 @@ async function runSearch() {
 }
 
 function render() {
+  const health = sourceHealth();
   renderBanner();
-  renderSourceChips();
+  renderSourceBanner(health);
+  renderSourceChips(health);
   if (state.query) runSearch();
   else renderFeed();
 }
@@ -343,7 +430,7 @@ function syncTheme() {
   els.themeToggle.textContent = dark ? '☀' : '☾';
   els.themeToggle.title = dark ? '라이트 모드로 바꾸기' : '다크 모드로 바꾸기';
   els.themeToggle.setAttribute('aria-label', els.themeToggle.title);
-  const color = dark ? '#171717' : '#fafafa';
+  const color = dark ? '#171717' : '#eff3f3';
   if (document.documentElement.dataset.theme) {
     document.querySelectorAll('meta[name="theme-color"]').forEach((m) => { m.content = color; });
   }
@@ -362,15 +449,17 @@ function restoreScroll() {
 }
 
 async function refresh() {
-  const v = Date.now();
   try {
-    const [mRes, lRes] = await Promise.all([
-      fetch(`data/manifest.json?v=${v}`),
-      fetch(`data/latest.json?v=${v}`),
-    ]);
-    if (!mRes.ok || !lRes.ok) throw new Error('fetch failed');
-    state.manifest = await mRes.json();
+    // manifest는 2KB라 매번 새로 받는다. latest.json은 manifest.updatedAt으로 버전을 매겨
+    // 데이터가 안 바뀐 재방문에서 브라우저 캐시를 타게 한다 — 첫 페인트는 이미 localStorage가 담당한다.
+    const mRes = await fetch(`data/manifest.json?v=${Date.now()}`);
+    if (!mRes.ok) throw new Error('manifest fetch failed');
+    const manifest = await mRes.json();
+    const lRes = await fetch(`data/latest.json?v=${encodeURIComponent(manifest.updatedAt)}`);
+    if (!lRes.ok) throw new Error('latest fetch failed');
+    state.manifest = manifest;
     state.items = await lRes.json();
+    state.showhnItems = null;
     lsSet(LS_CACHE, JSON.stringify({ manifest: state.manifest, items: state.items }));
     render();
     restoreScroll();
@@ -402,15 +491,10 @@ function init() {
 
   document.getElementById('brand').addEventListener('click', () => {
     ssSet(SS_SCROLL, '0');
-    ssSet(SS_SHOWHN, '0');
   });
   els.themeToggle.addEventListener('click', toggleTheme);
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', syncTheme);
   syncTheme();
-  els.showhnToggle.addEventListener('click', () => {
-    ssSet(SS_SHOWHN, ssGet(SS_SHOWHN) === '1' ? '0' : '1');
-    renderShowhn();
-  });
 
   let debounce = null;
   els.q.addEventListener('input', () => {
@@ -418,6 +502,7 @@ function init() {
     debounce = setTimeout(() => {
       state.query = els.q.value.trim();
       state.searchSeq++;
+      state.feedExpanded = false;
       render();
     }, 300);
   });
