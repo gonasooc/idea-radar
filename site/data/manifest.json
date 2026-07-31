@@ -1,62 +1,62 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-30T20:45:34.973Z",
+  "updatedAt": "2026-07-31T06:20:09.707Z",
   "lastCollectedDate": "2026-07-31",
   "months": [
     {
       "key": "2026-07",
       "hasShowhn": true,
       "counts": {
-        "geeknews-show": 71,
+        "geeknews-show": 72,
         "disquiet": 40,
-        "syde": 24,
+        "syde": 25,
         "jocohunt": 64,
         "ilddan": 25,
         "producthunt": 92,
-        "showhn": 829
+        "showhn": 856
       }
     }
   ],
   "sources": {
     "geeknews-show": {
-      "lastSuccessAt": "2026-07-30T20:45:34.973Z",
+      "lastSuccessAt": "2026-07-31T06:20:09.707Z",
       "lastRawCount": 40,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "disquiet": {
-      "lastSuccessAt": "2026-07-30T20:45:34.973Z",
+      "lastSuccessAt": "2026-07-31T06:20:09.707Z",
       "lastRawCount": 40,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "syde": {
-      "lastSuccessAt": "2026-07-30T20:45:34.973Z",
+      "lastSuccessAt": "2026-07-31T06:20:09.707Z",
       "lastRawCount": 20,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "jocohunt": {
-      "lastSuccessAt": "2026-07-30T20:45:34.973Z",
+      "lastSuccessAt": "2026-07-31T06:20:09.707Z",
       "lastRawCount": 170,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "ilddan": {
-      "lastSuccessAt": "2026-07-30T20:45:34.973Z",
+      "lastSuccessAt": "2026-07-31T06:20:09.707Z",
       "lastRawCount": 23,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "producthunt": {
-      "lastSuccessAt": "2026-07-30T20:45:34.973Z",
+      "lastSuccessAt": "2026-07-31T06:20:09.707Z",
       "lastRawCount": 50,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "showhn": {
-      "lastSuccessAt": "2026-07-30T20:45:34.973Z",
-      "lastRawCount": 668,
+      "lastSuccessAt": "2026-07-31T06:20:09.707Z",
+      "lastRawCount": 646,
       "consecutiveFailures": 0,
       "lastError": null
     }
