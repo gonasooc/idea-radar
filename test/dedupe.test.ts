@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { dedupeInRun, nativeId } from '../src/run.ts'
+import { assertRawItem, dedupeInRun, nativeId } from '../src/run.ts'
 import type { RawItem } from '../src/types.ts'
 
 function raw(id: string, title: string): RawItem {
@@ -19,6 +19,18 @@ test('nativeId: 소스 접두어를 정확히 벗겨낸다', () => {
 test('nativeId: 네이티브 id 안의 콜론·하이픈을 보존한다', () => {
   assert.equal(nativeId('syde', 'syde:0f8c1a2b-3d4e-5f60-8a9b-0c1d2e3f4a5b'), '0f8c1a2b-3d4e-5f60-8a9b-0c1d2e3f4a5b')
   assert.equal(nativeId('jocohunt', 'jocohunt:my-product_1'), 'my-product_1')
+})
+
+test('nativeId: 잘못된 소스 접두어나 빈 네이티브 id를 거부한다', () => {
+  assert.throws(() => nativeId('disquiet', 'syde:123'), /does not start/)
+  assert.throws(() => nativeId('disquiet', 'disquiet:'), /no native id/)
+})
+
+test('assertRawItem: 공통 스키마 위반을 컬렉터 단계에서 거부한다', () => {
+  assert.doesNotThrow(() => assertRawItem('disquiet', raw('disquiet:1', '정상')))
+  assert.throws(() => assertRawItem('disquiet', { ...raw('disquiet:1', '정상'), source: 'syde' }), /has source/)
+  assert.throws(() => assertRawItem('disquiet', { ...raw('disquiet:1', '정상'), url: 'javascript:alert(1)' }), /invalid url/)
+  assert.throws(() => assertRawItem('disquiet', { ...raw('disquiet:1', '정상'), publishedAt: 'not-a-date' }), /invalid publishedAt/)
 })
 
 // 기록된 항목은 불변이다 (CLAUDE.md 5). 같은 id를 다시 보면 나중 것으로 덮어쓰지 않고

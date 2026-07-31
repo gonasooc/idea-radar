@@ -333,6 +333,86 @@
       ],
       "volume_per_day": "RSS(매거진) 약 1~2건/일 수준(주 4~8건); 데일리 IT뉴스는 주중 3~6건/일이나 RSS 미포함",
       "notes": "2군 판정 — 그리고 목적 적합성이 매우 낮음. [핵심] '신규 앱 소개' 카테고리는 사실상 폐지 상태: /application/ 최신 글이 2021-06-22, cate=app RSS는 2016년, cate=apps는 2021년에서 멈춤. 현재 발행물은 가전/액세서리 리뷰(드라이기·가습기·마사지건), 설문 랭킹, 칼럼, 일반 IT산업 뉴스(규제·소송·반도체)로, 신규 앱/웹서비스 아이디어 소스로는 수확이 거의 없어 '출시/앱/서비스' 키워드 필터를 걸어도 월 수 건 수준 예상. [기술] 수집 자체는 쉬움: RSS 2.0 실존·검증됨(추정과 달리 RSS 지원), EUC-KR 인코딩이라 iconv/디코딩 필수. 로그인·봇차단 없음(브라우저 UA로 curl 정상, robots.txt ai-train=yes). 단 RSS는 monthly 매거진 글만 담고 데일리 IT뉴스(daily####)는 미포함 — 그쪽은 내부 API https://news.appstory.co.kr/Bboard/boardlist_ajax.inc.php?ver=3&search=&key=&page=0&toPage=0&mode=&mode2=&modes=&sub_cate=news&tid= (검증됨, EUC-KR HTML 조각: tit_feed=제목, text_feed=요약, href=링크, data-datetime=unix시각, page 파라미터로 페이지네이션)로 수집 가능. 목록 페이지는 JS(AJAX) 렌더링이라 정적 HTML 파싱 불가하지만 headless는 불필요. [깨질 위험] 낮음(구형 PHP 스택, 수년간 구조 유지 추정). [결론] 기술적으로는 easy지만 1군은커녕 2군 필터로도 신규 앱 기사가 거의 안 나오므로 수집 대상에서 제외하거나 최하순위 권장 — feasibility를 medium으로 낮춘 사유는 목적 부적합."
+    },
+    {
+      "source": "BetaList",
+      "url": "https://betalist.com/",
+      "method": "rss",
+      "endpoint": "https://feeds.feedburner.com/BetaList (self 링크: https://betalist.com/startups/feed_original)",
+      "feasibility": "easy",
+      "verified": true,
+      "fields": [
+        "id (https://betalist.com/startups/{slug})",
+        "title (제품명 – 태그라인)",
+        "content (HTML 제품 설명)",
+        "link (BetaList 상세 페이지)",
+        "published / updated (ISO8601)"
+      ],
+      "volume_per_day": "약 15~17건/일 (2026-08-01 실측: Atom 25개가 2026-07-30 03:00Z~07-31 15:00Z, 약 36시간을 커버)",
+      "notes": "추가 권장 1군. 제품 출시만 있는 피드라 키워드 필터가 필요 없고, 공식 홈페이지 head의 rel=alternate Atom 링크로 공개되어 있다. FeedBurner 리다이렉트 후 25개 entry를 받고 각 entry에 영구 slug id, 제품명+태그라인, 설명, 발행시각이 모두 있다. robots.txt는 User-agent: * / Allow: /. 현재 25개 제목과 보관 중인 Product Hunt 92개 제목의 정확 일치가 없어 표본상 보완성이 높다. 다만 현재 기본 화면 목표 물량(Show HN 제외 25~30건/일)을 약 50% 늘리므로 즉시 켜기보다 실제 사용 시 물량 부족이 확인되면 첫 번째로 추가한다. 구현 시 title의 첫 ' – '를 제품명/태그라인으로 결정론적으로 분리하고 content 첫 p를 설명으로 쓰며, id의 slug를 native id로 사용한다."
+    },
+    {
+      "source": "Microlaunch",
+      "url": "https://microlaunch.net/",
+      "method": "static_html",
+      "endpoint": "https://microlaunch.net/ (Next.js flight payload; 보조 sitemap https://microlaunch.net/server-sitemap.xml)",
+      "feasibility": "medium",
+      "verified": true,
+      "fields": [
+        "id / product_id",
+        "codename / problem_label / description",
+        "slug / url",
+        "created_at / start_date",
+        "status / batch_num / votes"
+      ],
+      "volume_per_day": "2026년 7월 160건, 약 5건/일",
+      "notes": "보류 1군. 월간 출시 목록 자체는 목적에 맞고 홈페이지 SSR flight payload에 구조화 데이터가 전부 있다. 그러나 실측 HTML이 약 2.3MB이고 Next.js 내부 포맷에 의존한다. server-sitemap.xml은 약 16,953개 URL의 lastmod가 전부 같은 시각으로 재작성되어 증분 수집에 쓸 수 없다. BetaList보다 요청 크기와 파손면이 큰데 수율은 낮아서 두 번째 후보로 둔다."
+    },
+    {
+      "source": "OpenHunts",
+      "url": "https://openhunts.com/",
+      "method": "static_html",
+      "endpoint": "https://openhunts.com/",
+      "feasibility": "medium",
+      "verified": true,
+      "fields": [
+        "제품명",
+        "태그라인",
+        "제품 상세 링크",
+        "주간 순위 / 득표"
+      ],
+      "volume_per_day": "2026-07-27~08-02 주간 목록 최소 22건, 약 3건/일 이상",
+      "notes": "보류. 출시 전용 목록이라 키워드 필터는 필요 없지만 유료 Highlight 항목이 일반 순위 사이에 반복 삽입되고, 2026-08-01 실측에서 브라우저 렌더 경로는 열렸으나 일반 curl TLS 연결은 반복 reset되었다. GitHub Actions IP에서 안정적으로 수집 가능한지 확인하기 전에는 활성화하지 않는다."
+    },
+    {
+      "source": "Peerlist Launchpad",
+      "url": "https://peerlist.io/launchpad",
+      "method": "static_html",
+      "endpoint": "https://peerlist.io/launchpad",
+      "feasibility": "low",
+      "verified": true,
+      "fields": [
+        "주간 출시 제품",
+        "카테고리",
+        "득표 마감 시각"
+      ],
+      "volume_per_day": "2026-08-01 실측 현재 주간 0건",
+      "notes": "제외. 출시 전용 섹션이지만 공식 페이지가 'Become the first project to launch this week'를 표시해 현재 수율이 없다. 물량이 회복되기 전에는 수집 복잡도를 늘릴 가치가 없다."
+    },
+    {
+      "source": "Uneed",
+      "url": "https://www.uneed.best/",
+      "method": "internal_api",
+      "endpoint": "https://www.uneed.best/ (제품 목록은 클라이언트 로딩)",
+      "feasibility": "medium",
+      "verified": true,
+      "fields": [
+        "당일 출시 제품",
+        "카테고리 / 태그",
+        "제품 링크"
+      ],
+      "volume_per_day": "정적 응답에서는 확인 불가",
+      "notes": "보류. 활성 서비스이고 출시 전용이지만 정적 HTML은 'Best products launching today / Loading...'만 담아 비공개 클라이언트 API 조사가 필요하다. 안정적인 공식 Atom을 제공하는 BetaList가 있는 상황에서 내부 API 의존을 추가할 이유가 없다."
     }
   ]
 }

@@ -9,12 +9,12 @@ import {
   readManifest,
   readShard,
   rebuildLatest,
-  verifyDataDir,
   writeManifest,
   writeSeen,
   writeShard,
   writeShowhnScores,
 } from './store.ts'
+import { verifyArchiveIntegrity } from './integrity.ts'
 import { SOURCE_KEYS, SourceError } from './types.ts'
 import type { Collector, ErrorKind, Item, Manifest, MonthEntry, RawItem, SourceKey, SourceStatus } from './types.ts'
 import { disquiet } from './collectors/disquiet.ts'
@@ -39,7 +39,7 @@ const ALERT_STALL_MS = 40 * 3600 * 1000
 
 type RunError = { kind: ErrorKind; status?: number; message: string }
 
-type SourceRun = {
+export type SourceRun = {
   key: SourceKey
   ok: boolean
   parsedCount: number
@@ -74,13 +74,42 @@ function toRunError(e: unknown): RunError {
 }
 
 export function nativeId(key: SourceKey, id: string): string {
-  return id.slice(key.length + 1)
+  const prefix = `${key}:`
+  if (!id.startsWith(prefix) || id.length === prefix.length) {
+    throw new SourceError('parse', `${key}: item id ${JSON.stringify(id)} does not start with ${prefix} or has no native id`)
+  }
+  return id.slice(prefix.length)
 }
 
 export function dedupeInRun(items: RawItem[]): RawItem[] {
   const byId = new Map<string, RawItem>()
   for (const it of items) if (!byId.has(it.id)) byId.set(it.id, it)
   return [...byId.values()]
+}
+
+export function assertRawItem(key: SourceKey, item: RawItem): void {
+  nativeId(key, item.id)
+  if (item.source !== key) throw new SourceError('parse', `${key}: item ${item.id} has source ${item.source}`)
+  if (typeof item.title !== 'string' || item.title.trim() === '') {
+    throw new SourceError('parse', `${key}: item ${item.id} has an empty title`)
+  }
+  if ([...item.title].length > 300) throw new SourceError('parse', `${key}: item ${item.id} title exceeds 300 characters`)
+  if (typeof item.description !== 'string') throw new SourceError('parse', `${key}: item ${item.id} description is not a string`)
+  if ([...item.description].length > 300) {
+    throw new SourceError('parse', `${key}: item ${item.id} description exceeds 300 characters`)
+  }
+  if (typeof item.url !== 'string' || !/^https?:\/\//.test(item.url)) {
+    throw new SourceError('parse', `${key}: item ${item.id} has an invalid url`)
+  }
+  if (item.externalUrl !== undefined && (typeof item.externalUrl !== 'string' || !/^https?:\/\//.test(item.externalUrl))) {
+    throw new SourceError('parse', `${key}: item ${item.id} has an invalid externalUrl`)
+  }
+  if (item.publishedAt !== undefined && (typeof item.publishedAt !== 'string' || Number.isNaN(Date.parse(item.publishedAt)))) {
+    throw new SourceError('parse', `${key}: item ${item.id} has an invalid publishedAt`)
+  }
+  if (item.score !== undefined && (typeof item.score !== 'number' || !Number.isFinite(item.score))) {
+    throw new SourceError('parse', `${key}: item ${item.id} has a non-finite score`)
+  }
 }
 
 async function collectAll(keys: SourceKey[], seed: boolean, dryRun: boolean): Promise<SourceRun[]> {
@@ -100,6 +129,7 @@ async function collectAll(keys: SourceKey[], seed: boolean, dryRun: boolean): Pr
     try {
       const result = await collector.collect({ seen: seen.ids, seed })
       if (result.parsedCount === 0) throw new SourceError('parse', 'parsedCount is 0')
+      for (const item of result.items) assertRawItem(key, item)
       runs.push({
         key,
         ok: true,
@@ -117,12 +147,13 @@ async function collectAll(keys: SourceKey[], seed: boolean, dryRun: boolean): Pr
 
 type MergeOutcome = { newCounts: Map<SourceKey, number>; touchedMonths: Map<string, { showhn: boolean }> }
 
-async function merge(runs: SourceRun[], collectedAt: string, seed: boolean): Promise<MergeOutcome> {
+export async function merge(runs: SourceRun[], collectedAt: string, seed: boolean): Promise<MergeOutcome> {
   const collectedDate = kstDate(new Date(collectedAt))
   const month = kstMonthKey(new Date(collectedAt))
   const newCounts = new Map<SourceKey, number>()
   const touchedMonths = new Map<string, { showhn: boolean }>()
   const shardCache = new Map<string, { items: Item[]; ids: Set<string>; dirty: boolean }>()
+  const seenWrites = new Map<SourceKey, Set<string>>()
 
   async function shardFor(showhnShard: boolean) {
     const cacheKey = showhnShard ? `${month}.showhn` : month
@@ -151,24 +182,37 @@ async function merge(runs: SourceRun[], collectedAt: string, seed: boolean): Pro
     const fresh = run.items.filter((it) => !seen.ids.has(nativeId(run.key, it.id)))
     const shard = await shardFor(run.key === 'showhn')
     let added = 0
+    let seenDirty = seen.state === 'missing'
     for (const raw of fresh) {
-      if (shard.ids.has(raw.id)) continue
+      const id = nativeId(run.key, raw.id)
+      if (shard.ids.has(raw.id)) {
+        // 샤드는 썼지만 seen 쓰기 전에 프로세스가 죽은 경우다. 샤드를 진실로 삼아
+        // 인덱스를 복구해야 다음 달에 같은 항목이 다시 나타나도 중복 저장되지 않는다.
+        seen.ids.add(id)
+        seenDirty = true
+        continue
+      }
       shard.items.push({ ...raw, collectedAt, collectedDate })
       shard.ids.add(raw.id)
       shard.dirty = true
       added++
-      seen.ids.add(nativeId(run.key, raw.id))
+      seen.ids.add(id)
+      seenDirty = true
     }
     newCounts.set(run.key, added)
-    if (added > 0 || seen.state === 'missing') await writeSeen(run.key, seen.ids)
+    if (seenDirty) seenWrites.set(run.key, seen.ids)
     if (added > 0) touchedMonths.set(month, { showhn: run.key === 'showhn' || (touchedMonths.get(month)?.showhn ?? false) })
   }
 
+  // 쓰기 순서가 데이터 보존 규약이다. seen을 먼저 쓰면 그 다음 샤드 쓰기가 실패했을 때
+  // 다음 실행이 항목을 이미 봤다고 오판해 영구 누락한다. 샤드를 먼저 쓰면 반대 방향의
+  // 부분 실패는 위의 shard.ids 분기에서 안전하게 자가복구된다.
   for (const [cacheKey, entry] of shardCache) {
     if (!entry.dirty) continue
     const showhnShard = cacheKey.endsWith('.showhn')
     await writeShard(month, showhnShard, entry.items)
   }
+  for (const [key, ids] of seenWrites) await writeSeen(key, ids)
   return { newCounts, touchedMonths }
 }
 
@@ -293,7 +337,7 @@ async function main(): Promise<void> {
   const manifest = await buildManifest(runs, runAt, touchedMonths)
   await writeManifest(manifest)
   await rebuildLatest(Date.parse(runAt))
-  await verifyDataDir()
+  await verifyArchiveIntegrity()
   ghOutput('data_valid', 'true')
   report(runs, newCounts, manifest, seed)
 }
