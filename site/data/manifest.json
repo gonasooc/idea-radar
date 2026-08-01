@@ -1,16 +1,16 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-08-01T06:06:07.512Z",
-  "lastCollectedDate": "2026-08-01",
+  "updatedAt": "2026-08-01T20:30:12.722Z",
+  "lastCollectedDate": "2026-08-02",
   "months": [
     {
       "key": "2026-08",
       "hasShowhn": true,
       "counts": {
-        "geeknews-show": 2,
-        "producthunt": 12,
+        "geeknews-show": 3,
+        "producthunt": 24,
         "jocohunt": 1,
-        "showhn": 105
+        "showhn": 151
       }
     },
     {
@@ -29,44 +29,44 @@
   ],
   "sources": {
     "geeknews-show": {
-      "lastSuccessAt": "2026-08-01T06:06:07.512Z",
+      "lastSuccessAt": "2026-08-01T20:30:12.722Z",
       "lastRawCount": 40,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "disquiet": {
-      "lastSuccessAt": "2026-08-01T06:06:07.512Z",
+      "lastSuccessAt": "2026-08-01T20:30:12.722Z",
       "lastRawCount": 40,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "syde": {
-      "lastSuccessAt": "2026-08-01T06:06:07.512Z",
+      "lastSuccessAt": "2026-08-01T20:30:12.722Z",
       "lastRawCount": 20,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "jocohunt": {
-      "lastSuccessAt": "2026-08-01T06:06:07.512Z",
+      "lastSuccessAt": "2026-08-01T20:30:12.722Z",
       "lastRawCount": 171,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "ilddan": {
-      "lastSuccessAt": "2026-08-01T06:06:07.512Z",
+      "lastSuccessAt": "2026-08-01T20:30:12.722Z",
       "lastRawCount": 23,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "producthunt": {
-      "lastSuccessAt": "2026-08-01T06:06:07.512Z",
+      "lastSuccessAt": "2026-08-01T20:30:12.722Z",
       "lastRawCount": 50,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "showhn": {
-      "lastSuccessAt": "2026-08-01T06:06:07.512Z",
-      "lastRawCount": 606,
+      "lastSuccessAt": "2026-08-01T20:30:12.722Z",
+      "lastRawCount": 528,
       "consecutiveFailures": 0,
       "lastError": null
     }
