@@ -1,18 +1,18 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-08-04T05:55:35.552Z",
-  "lastCollectedDate": "2026-08-04",
+  "updatedAt": "2026-08-04T20:52:54.579Z",
+  "lastCollectedDate": "2026-08-05",
   "months": [
     {
       "key": "2026-08",
       "hasShowhn": true,
       "counts": {
-        "geeknews-show": 22,
-        "producthunt": 56,
-        "jocohunt": 4,
-        "syde": 3,
+        "geeknews-show": 26,
+        "producthunt": 83,
+        "jocohunt": 6,
+        "syde": 4,
         "ilddan": 2,
-        "showhn": 433
+        "showhn": 571
       }
     },
     {
@@ -31,44 +31,44 @@
   ],
   "sources": {
     "geeknews-show": {
-      "lastSuccessAt": "2026-08-04T05:55:35.552Z",
+      "lastSuccessAt": "2026-08-04T20:52:54.579Z",
       "lastRawCount": 40,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "disquiet": {
-      "lastSuccessAt": "2026-08-04T05:55:35.552Z",
+      "lastSuccessAt": "2026-08-04T20:52:54.579Z",
       "lastRawCount": 40,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "syde": {
-      "lastSuccessAt": "2026-08-04T05:55:35.552Z",
+      "lastSuccessAt": "2026-08-04T20:52:54.579Z",
       "lastRawCount": 20,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "jocohunt": {
-      "lastSuccessAt": "2026-08-04T05:55:35.552Z",
-      "lastRawCount": 174,
+      "lastSuccessAt": "2026-08-04T20:52:54.579Z",
+      "lastRawCount": 176,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "ilddan": {
-      "lastSuccessAt": "2026-08-04T05:55:35.552Z",
+      "lastSuccessAt": "2026-08-04T20:52:54.579Z",
       "lastRawCount": 24,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "producthunt": {
-      "lastSuccessAt": "2026-08-04T05:55:35.552Z",
+      "lastSuccessAt": "2026-08-04T20:52:54.579Z",
       "lastRawCount": 50,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "showhn": {
-      "lastSuccessAt": "2026-08-04T05:55:35.552Z",
-      "lastRawCount": 433,
+      "lastSuccessAt": "2026-08-04T20:52:54.579Z",
+      "lastRawCount": 486,
       "consecutiveFailures": 0,
       "lastError": null
     }
