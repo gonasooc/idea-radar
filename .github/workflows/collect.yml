@@ -8,8 +8,10 @@ on:
       - 'site/**'
       - '.github/workflows/collect.yml'
   schedule:
-    - cron: '37 19 * * *' # 04:37 KST
-    - cron: '7 3 * * *' # 12:07 KST
+    # 여기 적힌 시각은 "발화 예정"이지 실제 실행 시각이 아니다. GitHub의 schedule 디스패처가
+    # 늦게 발화하며, 이 저장소 실측(13회)은 아래와 같다. SPEC 5의 지연 실측 절 참고.
+    - cron: '37 19 * * *' # 예정 04:37 KST → 실제 ~05:45 KST (실측 +53~76분)
+    - cron: '43 1 * * *' # 예정 10:43 KST → 실제 ~11:53 KST 기대 (2026-08-05 조정, 재측정 08-19)
   workflow_dispatch:
 
 permissions:
