@@ -44,8 +44,15 @@ jobs:
         run: node src/run.ts
 
       - name: commit and push
+        id: push
         if: ${{ always() && github.event_name != 'push' }}
         run: |
+          # 배포 가부는 "커밋됐는가"가 아니라 "지금 작업 트리가 검증을 통과했는가"로 정한다.
+          # push 충돌 3회 실패는 데이터가 멀쩡한(매 반복 verify 통과) 경우라 배포해야 하고,
+          # verify 실패는 커밋과 함께 배포도 막아야 한다. 이 스텝이 실패하는 두 경로를
+          # pages 스텝이 구분할 방법이 이 output뿐이다.
+          DEPLOYABLE=false
+          trap 'echo "deployable=$DEPLOYABLE" >> "$GITHUB_OUTPUT"' EXIT
           if [ "${{ steps.collect.outputs.data_valid }}" = "false" ]; then
             echo "::error::collected data failed JSON validation — refusing to commit"
             exit 1
@@ -55,7 +62,10 @@ jobs:
           for attempt in 1 2 3; do
             # 매 반복에서 검증한다 — --replay 결과도 여기서 걸러야 한다.
             # run.ts는 절대 non-zero로 끝나지 않으므로 셸이 replay 실패를 알 방법이 이것뿐이다.
+            # 플래그도 매 반복 내린다: 1회차 통과 후 replay가 깨지면 그 트리는 배포 대상이 아니다.
+            DEPLOYABLE=false
             node src/verify.ts || exit 1
+            DEPLOYABLE=true
             git add -A
             if git diff --cached --quiet; then
               echo "no changes"
@@ -73,19 +83,23 @@ jobs:
           echo "::error::push failed after 3 attempts"
           exit 1
 
+      # 배포는 검증을 통과한 site/ 만 올린다. `!cancelled()` 하나로는 부족했다 — commit 스텝이
+      # verify 실패로 죽어도 이 스텝들이 그대로 돌아, 커밋이 거부된 데이터가 사이트에는 올라갔다.
+      # 저장소만 지키고 실제 사이트는 안 지키는 게이트였다 (SPEC 4.4 마지막 문단).
+      # push 이벤트는 사람이 site/ 를 손으로 고친 경우라 commit 스텝 자체가 스킵되므로 통과시킨다.
       - name: configure pages
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && (github.event_name == 'push' || steps.push.outputs.deployable == 'true') }}
         uses: actions/configure-pages@v5
 
       - name: upload pages artifact
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && (github.event_name == 'push' || steps.push.outputs.deployable == 'true') }}
         uses: actions/upload-pages-artifact@v3
         with:
           path: site
 
       - name: deploy pages
         id: deployment
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && (github.event_name == 'push' || steps.push.outputs.deployable == 'true') }}
         uses: actions/deploy-pages@v4
 
       - name: report failures
