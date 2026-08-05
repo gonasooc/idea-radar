@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { concatFlight, sliceBalanced } from '../src/flight.ts'
+import { concatFlight, derefText, scanRows, sliceBalanced } from '../src/flight.ts'
 
 test('sliceBalanced: 단순 객체와 배열', () => {
   assert.equal(sliceBalanced('{"a":1}', 0), '{"a":1}')
@@ -70,4 +70,66 @@ test('concatFlight: 공백이 있는 push 형태도 잡는다', () => {
 // 청크가 0개면 chunkCount로 감지돼야 한다. 컬렉터들이 이 값으로 파싱 붕괴를 판정한다.
 test('concatFlight: 청크가 없으면 chunkCount 0', () => {
   assert.deepEqual(concatFlight('<html>no flight here</html>'), { text: '', chunkCount: 0 })
+})
+
+test('scanRows: 개행으로 끝나는 일반 행을 읽는다', () => {
+  const rows = scanRows('1:"a"\n2:I[123]\n3:{"x":1}\n')
+  assert.equal(rows.get('1'), '"a"')
+  assert.equal(rows.get('2'), 'I[123]')
+  assert.equal(rows.get('3'), '{"x":1}')
+})
+
+// hint 행은 ID가 비어 있다(`:HL[...]`). `[0-9a-f]+`로 받으면 여기서 스캔이 멈춰
+// 뒤쪽의 T행을 통째로 놓친다 — 실제 일딴 페이로드가 이 형태다.
+test('scanRows: 빈 행 ID에서 멈추지 않는다', () => {
+  const rows = scanRows(':HL["/a.css","style"]\n1e:T4,abcd\n')
+  assert.equal(rows.get('1e'), 'abcd')
+})
+
+// T의 길이는 바이트다. 한글은 UTF-8에서 글자당 3바이트라, 같은 수를 문자 수로 읽으면
+// 본문이 다음 행까지 넘어간다. 아래 픽스처는 그 차이가 드러나도록 만든 것이다 —
+// '안녕하세요'는 5글자 15바이트이므로, 문자 기준으로 15를 세면 '1f:T2,ok'까지 먹는다.
+test('scanRows: T행 길이는 문자가 아니라 바이트다', () => {
+  const rows = scanRows('1e:Tf,안녕하세요1f:T2,ok')
+  assert.equal(rows.get('1e'), '안녕하세요')
+  assert.equal(rows.get('1f'), 'ok')
+})
+
+// T행 뒤에는 구분자가 없다. 선언된 바이트가 끝나는 자리에서 다음 행이 바로 시작한다.
+test('scanRows: T행 뒤에 개행 없이 다음 행이 붙어도 읽는다', () => {
+  const rows = scanRows('1e:T3,abc1f:T3,def')
+  assert.equal(rows.get('1e'), 'abc')
+  assert.equal(rows.get('1f'), 'def')
+})
+
+test('scanRows: T 본문 안의 개행은 행을 끝내지 않는다', () => {
+  const rows = scanRows('1e:T9,a\r\n\r\nbcde\n2:"x"\n')
+  assert.equal(rows.get('1e'), 'a\r\n\r\nbcde')
+  assert.equal(rows.get('2'), '"x"')
+})
+
+test('scanRows: 형식이 깨져도 그 앞까지는 돌려준다', () => {
+  const rows = scanRows('1:"a"\n!!!garbage')
+  assert.equal(rows.get('1'), '"a"')
+  assert.equal(rows.size, 1)
+})
+
+test('derefText: 참조를 본문으로 바꾼다', () => {
+  const rows = scanRows('1e:T5,hello\n')
+  assert.equal(derefText('$1e', rows), 'hello')
+})
+
+// 참조가 아닌 값은 손대지 않는다. 가공 금지 원칙상 통과값은 바이트 그대로여야 한다.
+test('derefText: 참조가 아니면 원본 그대로', () => {
+  const rows = scanRows('1e:T5,hello\n')
+  assert.equal(derefText('보통 설명', rows), '보통 설명')
+  assert.equal(derefText('$notahexref', rows), '$notahexref')
+  assert.equal(derefText('$1e 로 시작하는 문장', rows), '$1e 로 시작하는 문장')
+})
+
+// 해석 실패에 원본(`$1e`)을 돌려주면 호출부가 그걸 그대로 저장한다. 반드시 undefined다.
+test('derefText: 없는 행이면 undefined', () => {
+  assert.equal(derefText('$ff', scanRows('1e:T5,hello\n')), undefined)
+  assert.equal(derefText(undefined, scanRows('')), undefined)
+  assert.equal(derefText(42, scanRows('')), undefined)
 })

@@ -1,4 +1,4 @@
-import { concatFlight, sliceBalanced } from '../flight.ts'
+import { concatFlight, derefText, scanRows, sliceBalanced } from '../flight.ts'
 import { getText, sleep } from '../http.ts'
 import { clean } from '../text.ts'
 import { SourceError } from '../types.ts'
@@ -46,7 +46,23 @@ function parsePrimary(html: string, cat: string, warnings: string[]): MarketRow[
   }
   const sorted = rows.every((r, i) => i === 0 || Date.parse((rows[i - 1] as MarketRow).created_at) >= Date.parse((r as MarketRow).created_at))
   if (!sorted) warnings.push(`ilddan ${cat}: rows not sorted by created_at desc`)
-  return rows as MarketRow[]
+
+  // 긴 description은 인라인이 아니라 `$1e` 참조로 온다. 여기서 풀지 않으면 그 토큰이 그대로
+  // 아카이브에 박히고, 항목은 불변이라 영영 못 고친다. 2026-08-05 실측에서 web 12건 중
+  // 6건이 참조였고 아카이브 27건 중 10건이 이미 그 상태였다. 해석 실패는 ''로 떨어뜨린다 —
+  // 참조 토큰을 저장하는 것보다 빈 설명이 낫고, 아래 경고가 사람에게 알린다.
+  const flightRows = scanRows(flight)
+  let unresolved = 0
+  const marketRows = rows as MarketRow[]
+  for (const r of marketRows) {
+    const text = derefText(r.description, flightRows)
+    if (text === undefined && typeof r.description === 'string') unresolved++
+    r.description = text ?? ''
+  }
+  if (unresolved > 0) {
+    warnings.push(`ilddan ${cat}: ${unresolved}/${marketRows.length} description refs unresolved — flight row table incomplete`)
+  }
+  return marketRows
 }
 
 function parseCardFallback(html: string, cat: string, warnings: string[]): MarketRow[] {
@@ -116,6 +132,13 @@ export const ilddan: Collector = {
         item.publishedAt = new Date(row.created_at).toISOString()
       }
       items.push(item)
+    }
+    // 참조 해석이 어떤 경로로든 빠져나가면 여기서 잡는다. 항목은 불변이라 한 번 저장되면
+    // 되돌릴 수 없으므로, 이 조건만은 경고가 아니라 소스 실패로 처리한다.
+    for (const it of items) {
+      if (/^\$[0-9a-f]+$/.test(it.description)) {
+        throw new SourceError('parse', `unresolved flight reference stored as description for ${it.id}`)
+      }
     }
     const newest = items.map((i) => (i.publishedAt ? Date.parse(i.publishedAt) : 0)).reduce((a, b) => Math.max(a, b), 0)
     if (newest > 0 && newest < Date.now() - 30 * 24 * 3600 * 1000) {
