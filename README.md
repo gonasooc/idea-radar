@@ -39,7 +39,8 @@ node --version            # v24 이상 필요 (타입 스트리핑으로 .ts 직
 
 node src/run.ts --dry-run          # 파일 안 쓰고 수집만 확인
 node src/run.ts --only=disquiet    # 소스 하나만
-node src/run.ts --seed             # 최초 1회. 수집분을 '오늘 신규'에 안 띄움
+node src/run.ts --seed             # 빈 아카이브 최초 1회. 수집분을 '오늘 신규'에 안 띄움
+node src/run.ts --rebuild-seen     # state/seen/*.json 을 아카이브에서 되만듦 (요청 안 나감)
 
 npx serve site                     # 로컬에서 페이지 확인
 ```

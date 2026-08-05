@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile, rename, readdir } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Item, Manifest, SourceKey } from './types.ts'
-import { SourceError } from './types.ts'
+import { SOURCE_KEYS, SourceError } from './types.ts'
 
 const ROOT = process.env.IDEA_RADAR_ROOT ?? path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -139,6 +139,24 @@ export async function lastNewDates(): Promise<Map<SourceKey, string>> {
     for (const it of await readShard(month.key, false)) {
       const prev = out.get(it.source)
       if (prev === undefined || it.collectedDate > prev) out.set(it.source, it.collectedDate)
+    }
+  }
+  return out
+}
+
+// 아카이브 전량을 훑어 소스별 네이티브 id 집합을 만든다. `integrity.ts`가 seen 인덱스와
+// 정확히 같은지 단언하는 그 집합이고, `--rebuild-seen`이 seen을 다시 쓸 때 쓰는 근거다.
+//
+// 여기는 `lastNewDates`와 달리 최근 2개월로 자르지 않는다. 목적이 "최근 언제"가 아니라
+// "전량 일치"라서, 한 달이라도 빠뜨리면 그 달 항목이 seen에서 사라져 전부 재수집된다.
+// 매 실행 도는 경로가 아니라 사람이 부르는 복구 명령이므로 전량 읽기 비용은 문제가 아니다.
+export async function archiveNativeIds(): Promise<Map<SourceKey, Set<string>>> {
+  const out = new Map<SourceKey, Set<string>>(SOURCE_KEYS.map((key) => [key, new Set<string>()]))
+  for (const month of await listMonths()) {
+    for (const showhnShard of month.hasShowhn ? [false, true] : [false]) {
+      for (const item of await readShard(month.key, showhnShard)) {
+        out.get(item.source)?.add(item.id.slice(item.source.length + 1))
+      }
     }
   }
   return out

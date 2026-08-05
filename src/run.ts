@@ -4,6 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { kstDate, kstMonthKey } from './kst.ts'
 import {
+  archiveNativeIds,
   lastNewDates,
   listMonths,
   loadSeen,
@@ -55,6 +56,13 @@ const NEW_ZERO_WARN_DAYS: Partial<Record<SourceKey, number>> = {
 }
 
 const ALERT_STALL_MS = 40 * 3600 * 1000
+
+// seen 인덱스를 잃었을 때 `--seed`를 시키면 안 된다. seed는 collectedAt을 48시간 백데이트하므로
+// 아카이브가 비어 있지 않으면 그 실행의 신규 항목이 기존 항목보다 과거 시각으로 뒤에 붙고,
+// integrity의 append 순서 단언이 깨져 그 뒤로 아무것도 커밋되지 않는다. 손으로 샤드를 고치기
+// 전엔 안 풀린다. 인덱스만 잃은 상황의 올바른 복구는 아카이브에서 되만드는 것이다.
+const SEEN_MISSING_HINT =
+  'seen index missing — rebuild it from the archive with `node src/run.ts --rebuild-seen`; use `--seed` only to bootstrap an empty archive'
 
 type RunError = { kind: ErrorKind; status?: number; message: string }
 
@@ -142,7 +150,7 @@ async function collectAll(keys: SourceKey[], seed: boolean, dryRun: boolean): Pr
       continue
     }
     if (seen.state === 'missing' && !seed && !dryRun) {
-      runs.push({ key, ok: false, parsedCount: 0, items: [], warnings: [], error: { kind: 'parse', message: 'seen index missing — run `node src/run.ts --seed` once first' } })
+      runs.push({ key, ok: false, parsedCount: 0, items: [], warnings: [], error: { kind: 'parse', message: SEEN_MISSING_HINT } })
       continue
     }
     try {
@@ -195,7 +203,7 @@ export async function merge(runs: SourceRun[], collectedAt: string, seed: boolea
     }
     if (seen.state === 'missing' && !seed) {
       run.ok = false
-      run.error = { kind: 'parse', message: 'seen index missing at merge time — run --seed once first' }
+      run.error = { kind: 'parse', message: `seen index missing at merge time — ${SEEN_MISSING_HINT}` }
       continue
     }
     const fresh = run.items.filter((it) => !seen.ids.has(nativeId(run.key, it.id)))
@@ -331,8 +339,41 @@ function report(
   ghOutput('all_failed', String(attempted.length > 0 && failed.length === attempted.length))
 }
 
+// 아카이브에서 state/seen/*.json 을 되만든다. 수집을 하지 않으므로 소스에 요청 한 번 안 나간다.
+//
+// 아카이브에 항목이 없고 인덱스도 없는 소스는 건드리지 않는다. 빈 `[]`를 써 두면 loadSeen이
+// 'missing' 대신 'ok'를 돌려주고, 그러면 최초 실행이 --seed 없이 그냥 지나가 버린다 —
+// Show HN 수백 건이 "오늘 신규"로 쏟아지는 걸 막는 게 seed의 존재 이유다 (SPEC 7).
+export async function rebuildSeen(): Promise<boolean> {
+  const bySource = await archiveNativeIds()
+  for (const [key, ids] of bySource) {
+    const before = await loadSeen(key)
+    if (ids.size === 0 && before.state === 'missing') {
+      console.log(`[skip] ${key.padEnd(14)} no archived items and no index — bootstrap with --seed`)
+      continue
+    }
+    await writeSeen(key, ids)
+    console.log(`[seen] ${key.padEnd(14)} ${before.state.padEnd(7)} ${before.ids.size} → ${ids.size}`)
+  }
+  try {
+    await verifyArchiveIntegrity()
+    console.log('seen indexes rebuilt from the archive; integrity OK')
+    return true
+  } catch (e) {
+    // run.ts는 여기서도 non-zero로 끝내지 않는다 (CLAUDE.md 1). 셸이 결과를 알아야 하면
+    // 이어서 `node src/verify.ts`를 돌린다 — 그쪽은 실패 시 non-zero다.
+    console.log(`::error::seen rebuilt but archive integrity still fails: ${e instanceof Error ? e.message : String(e)}`)
+    console.log('the seen indexes now match the archive; the remaining failure is elsewhere — run `node src/verify.ts` for the exit code')
+    return false
+  }
+}
+
 async function main(): Promise<void> {
   const args = process.argv.slice(2)
+  if (args.includes('--rebuild-seen')) {
+    await rebuildSeen()
+    return
+  }
   const dryRun = args.includes('--dry-run')
   const seedFlag = args.includes('--seed')
   const replay = args.includes('--replay')
