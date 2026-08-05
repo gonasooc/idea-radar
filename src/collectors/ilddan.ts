@@ -7,6 +7,20 @@ import type { CollectResult, Collector, RawItem } from '../types.ts'
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const STATE_KEY = '{"mutations":[],"queries":['
 
+// derefText를 거치지 않은 경로가 생겼는지 보는 최후 방어선이다. 실제로 박혔던 행 참조(`$1e`)와
+// 값 센티널 중 **모양이 겹칠 수 없는 것만** 센다.
+//
+// `$`로 시작하면 무조건 잡는 식으로 넓히면 안 된다. escape가 풀린 진짜 설명(`$$100 정산`
+// → `$100 정산`)까지 잡혀서 그 제품이 목록에 있는 동안 소스가 매 실행 실패한다 — 항목이
+// 안 들어오는 게 아니라 소스가 죽는다. 같은 이유로 `$D…`(Date)·`$n…`(BigInt) 같은
+// 접두어 계열도 뺐다: `$Dollar 환율 계산기` 같은 설명과 구분이 안 된다. 그것들은 어차피
+// derefText가 undefined로 떨어뜨려 여기까지 오지 않는다.
+//
+// 남는 모호함 하나: 설명이 **정확히** `$100`이면 행 참조 `$100`과 문자열만으로 구분할 수 없어
+// 여기서 잡힌다. 한 줄 설명 전체가 `$100`인 경우 대 참조 토큰이 박히는 경우를 견주면
+// 잡는 쪽이 맞다 — 전자는 소스가 하루 실패하고 끝이지만 후자는 영구히 남는다.
+const FLIGHT_SENTINEL = /^\$(?:[0-9a-f]+|undefined|Infinity|-Infinity|NaN)$/
+
 type MarketRow = {
   id: string
   created_at: string
@@ -55,8 +69,11 @@ function parsePrimary(html: string, cat: string, warnings: string[]): MarketRow[
   let unresolved = 0
   const marketRows = rows as MarketRow[]
   for (const r of marketRows) {
-    const text = derefText(r.description, flightRows)
-    if (text === undefined && typeof r.description === 'string') unresolved++
+    const raw = r.description
+    const text = derefText(raw, flightRows)
+    // `$undefined`는 해석 실패가 아니라 "설명이 없다"는 뜻이다. 이걸 unresolved로 세면
+    // 설명 없는 제품이 하나 있을 때마다 "행 표가 불완전하다"는 거짓 경고가 뜬다.
+    if (text === undefined && typeof raw === 'string' && raw !== '$undefined') unresolved++
     r.description = text ?? ''
   }
   if (unresolved > 0) {
@@ -136,8 +153,8 @@ export const ilddan: Collector = {
     // 참조 해석이 어떤 경로로든 빠져나가면 여기서 잡는다. 항목은 불변이라 한 번 저장되면
     // 되돌릴 수 없으므로, 이 조건만은 경고가 아니라 소스 실패로 처리한다.
     for (const it of items) {
-      if (/^\$[0-9a-f]+$/.test(it.description)) {
-        throw new SourceError('parse', `unresolved flight reference stored as description for ${it.id}`)
+      if (FLIGHT_SENTINEL.test(it.description)) {
+        throw new SourceError('parse', `unresolved flight sentinel stored as description for ${it.id}: ${it.description.slice(0, 40)}`)
       }
     }
     const newest = items.map((i) => (i.publishedAt ? Date.parse(i.publishedAt) : 0)).reduce((a, b) => Math.max(a, b), 0)

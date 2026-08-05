@@ -119,12 +119,12 @@ test('derefText: 참조를 본문으로 바꾼다', () => {
   assert.equal(derefText('$1e', rows), 'hello')
 })
 
-// 참조가 아닌 값은 손대지 않는다. 가공 금지 원칙상 통과값은 바이트 그대로여야 한다.
-test('derefText: 참조가 아니면 원본 그대로', () => {
+// `$`로 시작하지 않는 값은 손대지 않는다. 가공 금지 원칙상 통과값은 바이트 그대로여야 한다.
+test('derefText: 센티널이 아니면 원본 그대로', () => {
   const rows = scanRows('1e:T5,hello\n')
   assert.equal(derefText('보통 설명', rows), '보통 설명')
-  assert.equal(derefText('$notahexref', rows), '$notahexref')
-  assert.equal(derefText('$1e 로 시작하는 문장', rows), '$1e 로 시작하는 문장')
+  assert.equal(derefText('가격은 $100 부터', rows), '가격은 $100 부터')
+  assert.equal(derefText('', rows), '')
 })
 
 // 해석 실패에 원본(`$1e`)을 돌려주면 호출부가 그걸 그대로 저장한다. 반드시 undefined다.
@@ -132,4 +132,25 @@ test('derefText: 없는 행이면 undefined', () => {
   assert.equal(derefText('$ff', scanRows('1e:T5,hello\n')), undefined)
   assert.equal(derefText(undefined, scanRows('')), undefined)
   assert.equal(derefText(42, scanRows('')), undefined)
+})
+
+// 행 참조는 `$` 센티널의 한 종류일 뿐이다. 나머지를 "참조가 아니니 원본 그대로"로 흘리면
+// `$undefined`가 설명으로 저장되고, 항목은 불변이라 손으로 데이터를 고치는 수밖에 없다.
+test('derefText: 행 참조가 아닌 값 센티널도 저장하지 않는다', () => {
+  const rows = scanRows('1e:T5,hello\n')
+  assert.equal(derefText('$undefined', rows), undefined)
+  assert.equal(derefText('$D2026-08-05T00:00:00.000Z', rows), undefined)
+  assert.equal(derefText('$n9007199254740993', rows), undefined)
+  assert.equal(derefText('$Infinity', rows), undefined)
+  assert.equal(derefText('$notahexref', rows), undefined)
+  assert.equal(derefText('$1e 로 시작하는 문장', rows), undefined)
+  assert.equal(derefText('$', rows), undefined)
+})
+
+// 진짜 `$`로 시작하는 문자열은 `$`를 하나 덧붙여 escape 되어 온다. 안 풀면 달러가 겹친 채 박힌다.
+test('derefText: escape 된 리터럴 $ 를 되돌린다', () => {
+  const rows = scanRows('1e:T5,hello\n')
+  assert.equal(derefText('$$100 부터 시작하는 정산 서비스', rows), '$100 부터 시작하는 정산 서비스')
+  assert.equal(derefText('$$1e', rows), '$1e')
+  assert.equal(derefText('$$', rows), '$')
 })

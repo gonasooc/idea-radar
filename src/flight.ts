@@ -57,12 +57,21 @@ export function scanRows(flight: string): FlightRows {
 
 const TEXT_REF = /^\$([0-9a-f]+)$/
 
-// 참조면 행 표에서 본문을 꺼내고, 참조가 아니면 그대로 돌려준다. 해석 실패는 undefined다 —
-// 호출부가 `$1e` 같은 참조 토큰을 값으로 저장하는 일이 없도록 강제하기 위해서다.
+// flight 모델에서 `$`로 시작하는 문자열은 **전부** 센티널이다. 행 참조(`$1e`)는 그중 하나일 뿐이고
+// `$undefined`, `$D2026-…`(Date), `$n…`(BigInt), `$Infinity` 같은 값 센티널이 같은 자리에 온다.
+// 그래서 "행 참조만 알고 나머지는 그대로 통과"시키면 `$undefined`가 설명으로 저장된다 —
+// 항목은 불변이라(SPEC 2.2) 한 번 들어가면 손으로 데이터를 고치는 것 말고 되돌릴 방법이 없다.
+// 실제로 `$1e`가 그렇게 박혔던 게 2026-08-05 수리 건이고, 이 함수는 그 클래스 전체를 막는다.
+//
+// 진짜 `$`로 시작하는 문자열은 직렬화 때 `$`를 하나 덧붙여 escape 되므로(`$100` → `$$100`)
+// 여기서 되돌린다. 그 외 알 수 없는 센티널은 undefined다 — 텍스트로 쓸 수 없는 값을
+// 호출부가 저장하는 일이 없도록 강제하기 위해서다.
 export function derefText(value: unknown, rows: FlightRows): string | undefined {
   if (typeof value !== 'string') return undefined
+  if (!value.startsWith('$')) return value
+  if (value.startsWith('$$')) return value.slice(1)
   const m = TEXT_REF.exec(value)
-  if (!m) return value
+  if (!m) return undefined
   return rows.get(m[1])
 }
 
