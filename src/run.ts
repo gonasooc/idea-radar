@@ -4,6 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { kstDate, kstMonthKey } from './kst.ts'
 import {
+  lastNewDates,
   listMonths,
   loadSeen,
   readManifest,
@@ -33,6 +34,24 @@ const NEW_COUNT_WARN: Partial<Record<SourceKey, number>> = {
   jocohunt: 25,
   producthunt: 30,
   showhn: 400,
+}
+
+// 소스가 성공하고 있는데 신규가 며칠째 0건이면 사람이 봐야 한다. 값은 각 소스 spec의
+// healthCheck에서 그대로 가져온 것이고, 소스마다 다른 이유는 유입 속도가 다르기 때문이다 —
+// PH는 하루 8~13건이라 이틀만 0건이어도 이상하고, Disquiet는 배치 승인이라 며칠 0건이 정상이다.
+//
+// 여기 없는 3개는 이미 동등한 검사가 있어서다:
+//   geeknews-show  WARN 9  — publishedAt 72h 이내 0건이면 컬렉터가 경고한다
+//   jocohunt       H15     — 0건인데 최신 sitemap slug가 미수집이면 컬렉터가 throw 한다
+//   showhn                 — 96h 창에서 0건이면 아래 report()가 즉시 경고한다
+//
+// 전부 경고 수준이다. 실패로 만들지 않는 이유는 SPEC 4.2 — 매일 빨간 X가 오면 2주 만에
+// 알림을 무시하게 되고, 그때부터 알림은 없는 것과 같다.
+const NEW_ZERO_WARN_DAYS: Partial<Record<SourceKey, number>> = {
+  producthunt: 2,
+  syde: 3,
+  disquiet: 7,
+  ilddan: 14,
 }
 
 const ALERT_STALL_MS = 40 * 3600 * 1000
@@ -252,7 +271,39 @@ async function buildManifest(runs: SourceRun[], runAt: string, touched: Map<stri
   return { schemaVersion: 1, updatedAt: runAt, lastCollectedDate: kstDate(new Date(runAt)), months, sources }
 }
 
-function report(runs: SourceRun[], newCounts: Map<SourceKey, number> | undefined, manifest: Manifest | undefined, seed: boolean): void {
+function daysBetween(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000)
+}
+
+// 성공한 소스만 본다. 실패 중인 소스는 이미 실패 경고와 40시간 alert 규칙이 담당하고,
+// 거기에 "N일째 0건"을 겹쳐 내면 같은 사고가 두 줄로 보고돼 소음이 된다.
+export function staleNewWarnings(runs: SourceRun[], lastNew: Map<SourceKey, string>, today: string): string[] {
+  const out: string[] = []
+  for (const run of runs) {
+    if (!run.ok) continue
+    const threshold = NEW_ZERO_WARN_DAYS[run.key]
+    if (threshold === undefined) continue
+    const last = lastNew.get(run.key)
+    if (last === undefined) {
+      out.push(`${run.key}: no items in the last two monthly shards — new-item inflow may have stopped`)
+      continue
+    }
+    const days = daysBetween(last, today)
+    if (days >= threshold) {
+      out.push(`${run.key}: ${days} days with no new items (threshold ${threshold}) — last new ${last}`)
+    }
+  }
+  return out
+}
+
+function report(
+  runs: SourceRun[],
+  newCounts: Map<SourceKey, number> | undefined,
+  manifest: Manifest | undefined,
+  seed: boolean,
+  staleWarnings: string[],
+): void {
+  for (const w of staleWarnings) ghWarning(w)
   for (const run of runs) {
     for (const w of run.warnings) ghWarning(w)
     if (run.ok) {
@@ -323,7 +374,9 @@ async function main(): Promise<void> {
       const wouldAdd = run.items.filter((it) => !seen.ids.has(nativeId(run.key, it.id))).length
       console.log(`[dry]  ${run.key.padEnd(14)} parsed=${run.parsedCount} would-add=${wouldAdd}`)
     }
-    report(runs, undefined, undefined, seed)
+    // dry-run은 merge를 하지 않으므로 오늘 들어올 항목이 아카이브에 없다. 신선도 경고를
+    // 내면 오늘 신규가 있는 소스까지 "N일째 0건"으로 뜬다.
+    report(runs, undefined, undefined, seed, [])
     return
   }
 
@@ -339,7 +392,9 @@ async function main(): Promise<void> {
   await rebuildLatest(Date.parse(runAt))
   await verifyArchiveIntegrity()
   ghOutput('data_valid', 'true')
-  report(runs, newCounts, manifest, seed)
+  // seed는 아카이브를 처음 채우는 실행이라 "며칠째 0건"이 의미가 없다.
+  const stale = seed ? [] : staleNewWarnings(runs, await lastNewDates(), kstDate(new Date(runAt)))
+  report(runs, newCounts, manifest, seed, stale)
 }
 
 // 테스트가 dedupeInRun/nativeId를 import 할 수 있어야 하므로 실행은 엔트리일 때만 한다.

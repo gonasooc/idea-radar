@@ -125,6 +125,25 @@ export async function rebuildLatest(nowMs: number): Promise<void> {
   await writeJsonAtomic(path.join(DATA_DIR, 'latest.json'), serializeRows(out))
 }
 
+// 소스별로 아카이브에 마지막으로 들어온 항목의 collectedDate. "며칠째 신규 0건인가"의 근거다.
+//
+// 최근 2개 월 샤드만 읽는다. 경고 임계값이 최대 14일인데 2개월 창은 항상 28일 이상을 덮으므로
+// 답이 창 안에서 나오고, 창 안에 없으면 "임계값보다 오래됨"이 이미 확정이라 더 읽을 이유가 없다.
+// 이 상한이 없으면 아카이브가 커질수록 매 실행 읽는 양이 무한정 늘어난다.
+//
+// Show HN은 제외한다: 96시간 창이라 신규 0건이면 며칠을 기다릴 것 없이 즉시 이상이고
+// (run.ts가 따로 경고한다), 샤드가 나머지의 5배라 매 실행 읽을 이유가 없다.
+export async function lastNewDates(): Promise<Map<SourceKey, string>> {
+  const out = new Map<SourceKey, string>()
+  for (const month of (await listMonths()).slice(0, 2)) {
+    for (const it of await readShard(month.key, false)) {
+      const prev = out.get(it.source)
+      if (prev === undefined || it.collectedDate > prev) out.set(it.source, it.collectedDate)
+    }
+  }
+  return out
+}
+
 export async function verifyDataDir(): Promise<void> {
   let names: string[] = []
   try {

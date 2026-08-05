@@ -122,6 +122,31 @@ test('rebuildLatest: 30일 컷오프를 적용하고 Show HN을 제외한다', a
   assert.ok(latest.every((i) => i.source !== 'showhn'))
 })
 
+test('lastNewDates: 소스별 최신 collectedDate를 고르고, Show HN과 3개월 전은 제외한다', async () => {
+  // 2개월 상한이 없으면 아카이브가 커질수록 매 실행 읽는 양이 무한정 늘어난다.
+  // syde는 가장 오래된 달에만 두어 창 밖이면 안 잡히는 것을 확인한다.
+  await store.writeShard('2026-07', false, [
+    item({ id: 'syde:old', source: 'syde', collectedAt: '2026-07-10T00:00:00.000Z' }),
+  ])
+  await store.writeShard('2026-08', false, [
+    item({ id: 'disquiet:a', collectedAt: '2026-08-02T00:00:00.000Z' }),
+    item({ id: 'disquiet:b', collectedAt: '2026-08-20T00:00:00.000Z' }),
+  ])
+  await store.writeShard('2026-09', false, [
+    item({ id: 'disquiet:c', collectedAt: '2026-09-03T00:00:00.000Z' }),
+    item({ id: 'ilddan:x', source: 'ilddan', collectedAt: '2026-09-01T00:00:00.000Z' }),
+  ])
+  await store.writeShard('2026-09', true, [
+    item({ id: 'showhn:1', source: 'showhn', collectedAt: '2026-09-04T00:00:00.000Z' }),
+  ])
+
+  const last = await store.lastNewDates()
+  assert.equal(last.get('disquiet'), '2026-09-03') // 두 달에 걸쳐 있어도 최신을 고른다
+  assert.equal(last.get('ilddan'), '2026-09-01')
+  assert.equal(last.get('showhn'), undefined) // showhn 샤드는 읽지 않는다
+  assert.equal(last.get('syde'), undefined) // 최근 2개월 창 밖
+})
+
 // 커밋 직전 게이트가 기대는 함수다. 깨진 JSON을 통과시키면 사이트가 흰 화면이 된다.
 test('verifyDataDir: 깨진 JSON을 잡는다', async () => {
   await store.verifyDataDir() // 여기까지는 전부 유효
