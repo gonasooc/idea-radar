@@ -31,9 +31,9 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: ${{ github.event_name != 'push' }}
         with:
           node-version: 24
@@ -89,18 +89,18 @@ jobs:
       # push 이벤트는 사람이 site/ 를 손으로 고친 경우라 commit 스텝 자체가 스킵되므로 통과시킨다.
       - name: configure pages
         if: ${{ !cancelled() && (github.event_name == 'push' || steps.push.outputs.deployable == 'true') }}
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
 
       - name: upload pages artifact
         if: ${{ !cancelled() && (github.event_name == 'push' || steps.push.outputs.deployable == 'true') }}
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: site
 
       - name: deploy pages
         id: deployment
         if: ${{ !cancelled() && (github.event_name == 'push' || steps.push.outputs.deployable == 'true') }}
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
 
       - name: report failures
         if: ${{ always() && github.event_name != 'push' }}
