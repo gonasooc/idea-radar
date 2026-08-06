@@ -1,8 +1,12 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { staleNewWarnings } from '../src/run.ts'
+import { formatStaleNew, staleNewSources } from '../src/run.ts'
 import type { SourceRun } from '../src/run.ts'
 import type { SourceKey } from '../src/types.ts'
+
+function staleNewWarnings(runs: SourceRun[], lastNew: Map<SourceKey, string>, today: string): string[] {
+  return formatStaleNew(staleNewSources(runs, lastNew, today))
+}
 
 function ok(key: SourceKey): SourceRun {
   return { key, ok: true, parsedCount: 40, items: [], warnings: [] }
@@ -64,4 +68,23 @@ test('월·연 경계를 넘어도 일수가 맞다', () => {
   const last = new Map<SourceKey, string>([['producthunt', '2026-12-30']])
   const out = staleNewWarnings([ok('producthunt')], last, '2027-01-03')
   assert.match(out[0], /4 days/)
+})
+
+// 이 판정은 manifest를 거쳐 사이트 상태 줄까지 간다. 사이트가 임계값을 모른 채 렌더할 수 있도록
+// 날짜와 일수를 구조로 넘겨야 한다 — 문자열만 내보내면 사이트가 임계값 표를 복제하게 된다.
+test('staleNewSources: 임계값을 넘긴 소스만 구조로 돌려준다', () => {
+  const last = new Map<SourceKey, string>([
+    ['disquiet', '2026-07-27'], // 9일 ≥ 7 → 판정 대상
+    ['ilddan', '2026-08-03'], // 2일 < 14 → 조용
+  ])
+  const stale = staleNewSources([ok('disquiet'), ok('ilddan')], last, TODAY)
+  assert.deepEqual([...stale.keys()], ['disquiet'])
+  assert.deepEqual(stale.get('disquiet'), { days: 9, lastNewDate: '2026-07-27' })
+})
+
+// days와 lastNewDate는 항상 같이 null이거나 같이 값이다. integrity가 그 짝을 단언하므로
+// 한쪽만 채우면 커밋 게이트가 막힌다.
+test('staleNewSources: 2개월 창에 기록이 없으면 두 필드가 함께 null이다', () => {
+  const stale = staleNewSources([ok('syde')], new Map(), TODAY)
+  assert.deepEqual(stale.get('syde'), { days: null, lastNewDate: null })
 })

@@ -87,7 +87,7 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
-/* 본문 16px/24px, 폭 672px. 크기 램프는 12 / 13 / 14 / 16 / 20 만 쓴다. */
+/* 본문 16px/24px, 폭 672px. 크기 램프는 12 / 13 / 14 / 16 / 18 / 20 만 쓴다 (SPEC 6.6). */
 body {
   margin: 0 auto;
   width: 100%;
@@ -179,7 +179,6 @@ button.on {
   box-shadow: none;
 }
 
-button:disabled { opacity: 0.45; cursor: default; }
 
 #themeToggle {
   display: grid;

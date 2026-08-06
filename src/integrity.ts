@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { kstDate, kstMonthKey } from './kst.ts'
-import { DATA_DIR, listMonths, loadSeen, readManifest, readShard, verifyDataDir } from './store.ts'
+import { DATA_DIR, SHOWHN_SCORES_FILE, latestWindow, listMonths, loadSeen, readManifest, readShard, verifyDataDir } from './store.ts'
 import { SOURCE_KEYS, SourceError } from './types.ts'
 import type { Item, Manifest, SourceKey, SourceStatus } from './types.ts'
 
@@ -34,6 +34,21 @@ function assertStatus(key: string, value: unknown): asserts value is SourceStatu
     }
     if (typeof value.lastError.message !== 'string' || value.lastError.message === '') {
       fail(`manifest.sources.${key}.lastError.message is empty`)
+    }
+  }
+  // 정상인 소스에는 키 자체가 없다. undefined를 통과시켜야 이 필드가 생기기 전에 커밋된
+  // manifest도 검증을 통과한다 — check.yml의 verify는 collect가 한 번 돌기 전에 먼저 뜬다.
+  if (value.staleNew !== undefined) {
+    if (!isRecord(value.staleNew)) fail(`manifest.sources.${key}.staleNew is not an object`)
+    const { days, lastNewDate } = value.staleNew
+    if (days !== null && (!Number.isInteger(days) || (days as number) < 0)) {
+      fail(`manifest.sources.${key}.staleNew.days is invalid`)
+    }
+    if (lastNewDate !== null && (typeof lastNewDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(lastNewDate))) {
+      fail(`manifest.sources.${key}.staleNew.lastNewDate is invalid`)
+    }
+    if ((days === null) !== (lastNewDate === null)) {
+      fail(`manifest.sources.${key}.staleNew has one of days/lastNewDate null but not the other`)
     }
   }
 }
@@ -154,17 +169,17 @@ export async function verifyArchiveIntegrity(): Promise<void> {
 
   const latestValue = await readJsonFile(path.join(DATA_DIR, 'latest.json'))
   if (!Array.isArray(latestValue)) fail('latest.json is not an array')
-  const cutoff = new Date(Date.parse(manifest.updatedAt) - 30 * 24 * 3600 * 1000).toISOString()
+  const { cutoff, keys } = latestWindow(diskMonths, Date.parse(manifest.updatedAt))
   const expectedLatest: Item[] = []
-  for (const diskMonth of [...diskMonths.slice(0, 2)].sort((a, b) => (a.key < b.key ? -1 : 1))) {
-    for (const item of await readShard(diskMonth.key, false)) if (item.collectedAt >= cutoff) expectedLatest.push(item)
+  for (const key of keys) {
+    for (const item of await readShard(key, false)) if (item.collectedAt >= cutoff) expectedLatest.push(item)
   }
   if (JSON.stringify(latestValue) !== JSON.stringify(expectedLatest)) {
     fail('latest.json is not the exact 30-day projection of monthly shards')
   }
 
   try {
-    const scores = await readJsonFile(path.join(DATA_DIR, 'showhn-scores.json'))
+    const scores = await readJsonFile(path.join(DATA_DIR, SHOWHN_SCORES_FILE))
     if (!isRecord(scores)) fail('showhn-scores.json is not an object')
     for (const [id, score] of Object.entries(scores)) {
       if (!/^\d+$/.test(id) || typeof score !== 'number' || !Number.isFinite(score)) {

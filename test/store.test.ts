@@ -122,6 +122,30 @@ test('rebuildLatest: 30일 컷오프를 적용하고 Show HN을 제외한다', a
   assert.ok(latest.every((i) => i.source !== 'showhn'))
 })
 
+// "최근 2개월"로 자르면 2월이 28·29일이라 3월 1~2일에 1월 말 항목이 조용히 빠진다.
+// rebuildLatest와 integrity가 각자 그 상수를 복제하고 있어서 커밋 게이트도 못 잡던 누락이다.
+test('latestWindow: 30일 창이 세 달에 걸치는 날 세 달을 모두 읽는다', () => {
+  const months = [
+    { key: '2026-03', hasShowhn: false },
+    { key: '2026-02', hasShowhn: false },
+    { key: '2026-01', hasShowhn: false },
+  ]
+  // KST 2026-03-01 04:37 (아침 수집) → 컷오프는 KST 2026-01-30
+  const window = store.latestWindow(months, Date.parse('2026-02-28T19:37:00.000Z'))
+  assert.deepEqual(window.keys, ['2026-01', '2026-02', '2026-03'])
+  assert.equal(window.cutoff, '2026-01-29T19:37:00.000Z')
+})
+
+// 상한이 없으면 아카이브가 커질수록 매 실행 읽는 양이 늘어난다. 창 밖 달은 빼야 한다.
+test('latestWindow: 창 밖 달은 읽지 않는다', () => {
+  const months = [
+    { key: '2026-08', hasShowhn: false },
+    { key: '2026-07', hasShowhn: false },
+    { key: '2026-06', hasShowhn: false },
+  ]
+  assert.deepEqual(store.latestWindow(months, Date.parse('2026-08-05T20:46:05.791Z')).keys, ['2026-07', '2026-08'])
+})
+
 test('lastNewDates: 소스별 최신 collectedDate를 고르고, Show HN과 3개월 전은 제외한다', async () => {
   // 2개월 상한이 없으면 아카이브가 커질수록 매 실행 읽는 양이 무한정 늘어난다.
   // syde는 가장 오래된 달에만 두어 창 밖이면 안 잡히는 것을 확인한다.

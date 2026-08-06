@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile, rename, readdir } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { kstMonthKey } from './kst.ts'
 import type { Item, Manifest, SourceKey } from './types.ts'
 import { SOURCE_KEYS, SourceError } from './types.ts'
 
@@ -41,7 +42,7 @@ async function readJson(file: string): Promise<unknown | undefined> {
   return JSON.parse(text)
 }
 
-export function shardPath(monthKey: string, showhn: boolean): string {
+function shardPath(monthKey: string, showhn: boolean): string {
   return path.join(DATA_DIR, monthKey + (showhn ? '.showhn' : '') + '.json')
 }
 
@@ -114,13 +115,33 @@ export async function writeShowhnScores(scores: Record<string, number>): Promise
   await writeJsonAtomic(path.join(DATA_DIR, SHOWHN_SCORES_FILE), serializeScores(scores))
 }
 
+const LATEST_WINDOW_MS = 30 * 24 * 3600 * 1000
+
+// latest.json이 읽어야 하는 월 샤드 키(오래된 것 → 최신 순)와 그 컷오프.
+//
+// "최근 2개월"로 자르면 안 된다 — 2월이 28·29일이라 30일 창이 세 달에 걸치는 날이 있고
+// (2026~2030 전수 확인: 매년 3/1, 3/2) 그날은 1월 말 항목이 latest.json에서 조용히 빠진다.
+// rebuildLatest와 integrity가 각자 `slice(0, 2)`를 복제하고 있어서 커밋 게이트도 그 누락을
+// 못 잡았다. 그래서 "어느 달을 읽느냐"는 이 함수 하나로만 정한다 — 비교 자체는 integrity가
+// 여전히 독립적으로 한다.
+//
+// 컷오프 월 이전 샤드는 볼 필요가 없다. KST는 UTC의 단조 이동이라
+// collectedAt >= cutoff 이면 kstMonthKey(collectedAt) >= kstMonthKey(cutoff)가 항상 성립한다.
+export function latestWindow(months: DiskMonth[], nowMs: number): { cutoff: string; keys: string[] } {
+  const cutoffAt = new Date(nowMs - LATEST_WINDOW_MS)
+  const sinceMonth = kstMonthKey(cutoffAt)
+  const keys = months
+    .map((m) => m.key)
+    .filter((key) => key >= sinceMonth)
+    .sort()
+  return { cutoff: cutoffAt.toISOString(), keys }
+}
+
 export async function rebuildLatest(nowMs: number): Promise<void> {
-  const cutoff = new Date(nowMs - 30 * 24 * 3600 * 1000).toISOString()
-  const months = (await listMonths()).slice(0, 2)
+  const { cutoff, keys } = latestWindow(await listMonths(), nowMs)
   const out: Item[] = []
-  for (const m of [...months].sort((a, b) => (a.key < b.key ? -1 : 1))) {
-    const items = await readShard(m.key, false)
-    for (const it of items) if (it.collectedAt >= cutoff) out.push(it)
+  for (const key of keys) {
+    for (const it of await readShard(key, false)) if (it.collectedAt >= cutoff) out.push(it)
   }
   await writeJsonAtomic(path.join(DATA_DIR, 'latest.json'), serializeRows(out))
 }

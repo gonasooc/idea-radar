@@ -56,11 +56,17 @@ export type Collector = {
   collect(ctx: CollectContext): Promise<CollectResult>
 }
 
+// "소스는 계속 성공하는데 신규가 안 들어오는" 상태 (SPEC 4.5 여섯 번째). 임계값을 넘은
+// 소스에만 붙는다 — 정상일 때 키를 빼 두어야 건강한 날의 manifest diff가 0줄로 남는다.
+// days가 null이면 최근 2개 월 샤드 어디에도 기록이 없다는 뜻이다(임계값보다 오래됨이 확정).
+export type StaleNew = { days: number | null; lastNewDate: string | null }
+
 export type SourceStatus = {
   lastSuccessAt: string | null
   lastRawCount: number | null
   consecutiveFailures: number
   lastError: { at: string; kind: ErrorKind; status?: number; message: string } | null
+  staleNew?: StaleNew
 }
 
 export type MonthEntry = {

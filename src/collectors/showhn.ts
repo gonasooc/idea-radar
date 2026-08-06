@@ -73,7 +73,6 @@ function toDescription(storyText: string | undefined): string {
     out = out ? out + ' ' + p : p
     if (out.length >= 60) break
   }
-  if (out.length > 400) out = out.slice(0, 399).replace(/\s+\S*$/, '') + '…'
   return truncate300(out)
 }
 
@@ -118,7 +117,7 @@ export const showhn: Collector = {
     for (const it of items) {
       if (!/^showhn:[0-9]+$/.test(it.id)) throw new SourceError('parse', `bad id ${it.id}`)
       if (!/^https:\/\/news\.ycombinator\.com\/item\?id=[0-9]+$/.test(it.url)) throw new SourceError('parse', `bad url ${it.url}`)
-      if (typeof it.description !== 'string' || [...it.description].length > 401) throw new SourceError('parse', `bad description for ${it.id}`)
+      if (typeof it.description !== 'string' || [...it.description].length > 300) throw new SourceError('parse', `bad description for ${it.id}`)
       if (it.externalUrl && !/^https?:\/\//.test(it.externalUrl)) throw new SourceError('parse', `bad externalUrl ${it.externalUrl}`)
     }
     const withExternal = items.filter((i) => i.externalUrl).length

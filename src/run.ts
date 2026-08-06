@@ -18,7 +18,7 @@ import {
 } from './store.ts'
 import { verifyArchiveIntegrity } from './integrity.ts'
 import { SOURCE_KEYS, SourceError } from './types.ts'
-import type { Collector, ErrorKind, Item, Manifest, MonthEntry, RawItem, SourceKey, SourceStatus } from './types.ts'
+import type { Collector, ErrorKind, Item, Manifest, MonthEntry, RawItem, SourceKey, SourceStatus, StaleNew } from './types.ts'
 import { disquiet } from './collectors/disquiet.ts'
 import { geeknewsShow } from './collectors/geeknews-show.ts'
 import { ilddan } from './collectors/ilddan.ts'
@@ -29,10 +29,29 @@ import { syde } from './collectors/syde.ts'
 
 const COLLECTORS: Collector[] = [geeknewsShow, disquiet, syde, jocohunt, ilddan, producthunt, showhn]
 
+// 한 실행에 이만큼 넘게 들어오면 진짜 유입이 아니라 seen 인덱스가 날아간 것이다.
+//
+// **임계값은 그 소스의 파싱 상한보다 반드시 낮아야 한다.** 상한과 같게 두면 seen 전량 유실
+// (= 파싱한 전부가 신규)조차 발화시키지 못해 검출기가 죽은 채로 남는다. 실제로 그랬다:
+// geeknews-show는 40인데 2페이지 파싱 상한이 40이었고, jocohunt는 25인데 컬렉터가
+// NEW_HARD_CAP 25로 이미 잘라 added가 25를 넘을 수 없었다.
+//
+// jocohunt는 여기서 뺐다. 컬렉터가 자르기 **전에** `candidates > NEW_HARD_CAP`로 같은 판정을
+// 이미 하고 있어서, 여기 한 줄을 더 두면 같은 사고를 두 곳이 보고하는 축 중복이 된다.
+//
+// 소스별 근거 (파싱 상한 → 임계값):
+//   geeknews-show  40 → 25   하루 5~12건
+//   disquiet       40 → 30   하루 8~10건이지만 승인이 배치라 20건이 한 번에 들어온다
+//                            (2026-07-26 실측: 20건이 20초 안에 approved). 20보다 위여야 한다
+//   syde           20 → 15   하루 1~2건
+//   ilddan         24 → 15   하루 1~2건 (web 12 + game 12)
+//   producthunt    50 → 30   하루 8~13건
+//   showhn        ~600 → 400 하루 122~165건
 const NEW_COUNT_WARN: Partial<Record<SourceKey, number>> = {
-  'geeknews-show': 40,
+  'geeknews-show': 25,
+  disquiet: 30,
   syde: 15,
-  jocohunt: 25,
+  ilddan: 15,
   producthunt: 30,
   showhn: 400,
 }
@@ -243,7 +262,12 @@ export async function merge(runs: SourceRun[], collectedAt: string, seed: boolea
   return { newCounts, touchedMonths }
 }
 
-async function buildManifest(runs: SourceRun[], runAt: string, touched: Map<string, { showhn: boolean }>): Promise<Manifest> {
+async function buildManifest(
+  runs: SourceRun[],
+  runAt: string,
+  touched: Map<string, { showhn: boolean }>,
+  stale: Map<SourceKey, StaleNew>,
+): Promise<Manifest> {
   const prev = await readManifest()
   const diskMonths = await listMonths()
   const months: MonthEntry[] = []
@@ -265,14 +289,18 @@ async function buildManifest(runs: SourceRun[], runAt: string, touched: Map<stri
   const sources: Partial<Record<SourceKey, SourceStatus>> = { ...prev?.sources }
   for (const run of runs) {
     const before = sources[run.key]
+    // 정상이면 키를 아예 뺀다. null을 쓰면 건강한 날에도 7줄이 매번 다시 쓰여 diff가 지저분해진다.
+    const staleNew = stale.get(run.key)
+    const staleField = staleNew ? { staleNew } : {}
     if (run.ok) {
-      sources[run.key] = { lastSuccessAt: runAt, lastRawCount: run.parsedCount, consecutiveFailures: 0, lastError: null }
+      sources[run.key] = { lastSuccessAt: runAt, lastRawCount: run.parsedCount, consecutiveFailures: 0, lastError: null, ...staleField }
     } else {
       sources[run.key] = {
         lastSuccessAt: before?.lastSuccessAt ?? null,
         lastRawCount: before?.lastRawCount ?? null,
         consecutiveFailures: (before?.consecutiveFailures ?? 0) + 1,
         lastError: { at: runAt, kind: run.error!.kind, ...(run.error!.status !== undefined ? { status: run.error!.status } : {}), message: run.error!.message },
+        ...staleField,
       }
     }
   }
@@ -285,20 +313,34 @@ function daysBetween(from: string, to: string): number {
 
 // 성공한 소스만 본다. 실패 중인 소스는 이미 실패 경고와 40시간 alert 규칙이 담당하고,
 // 거기에 "N일째 0건"을 겹쳐 내면 같은 사고가 두 줄로 보고돼 소음이 된다.
-export function staleNewWarnings(runs: SourceRun[], lastNew: Map<SourceKey, string>, today: string): string[] {
-  const out: string[] = []
+//
+// 판정 결과를 문자열이 아니라 구조로 돌려주는 이유: 이 값이 manifest를 거쳐 사이트 상태 줄까지
+// 간다. 임계값 표는 여기 하나로 두고 사이트에는 "이미 내려진 판정"만 넘긴다 — 사이트가 임계값을
+// 복제하면 ALERT_STALL_MS처럼 두 곳이 어긋날 수 있는 값이 하나 더 생긴다.
+export function staleNewSources(runs: SourceRun[], lastNew: Map<SourceKey, string>, today: string): Map<SourceKey, StaleNew> {
+  const out = new Map<SourceKey, StaleNew>()
   for (const run of runs) {
     if (!run.ok) continue
     const threshold = NEW_ZERO_WARN_DAYS[run.key]
     if (threshold === undefined) continue
     const last = lastNew.get(run.key)
     if (last === undefined) {
-      out.push(`${run.key}: no items in the last two monthly shards — new-item inflow may have stopped`)
+      out.set(run.key, { days: null, lastNewDate: null })
       continue
     }
     const days = daysBetween(last, today)
-    if (days >= threshold) {
-      out.push(`${run.key}: ${days} days with no new items (threshold ${threshold}) — last new ${last}`)
+    if (days >= threshold) out.set(run.key, { days, lastNewDate: last })
+  }
+  return out
+}
+
+export function formatStaleNew(stale: Map<SourceKey, StaleNew>): string[] {
+  const out: string[] = []
+  for (const [key, s] of stale) {
+    if (s.days === null) {
+      out.push(`${key}: no items in the last two monthly shards — new-item inflow may have stopped`)
+    } else {
+      out.push(`${key}: ${s.days} days with no new items (threshold ${NEW_ZERO_WARN_DAYS[key]}) — last new ${s.lastNewDate}`)
     }
   }
   return out
@@ -428,14 +470,15 @@ async function main(): Promise<void> {
   const showhnRun = runs.find((r) => r.key === 'showhn')
   if (showhnRun?.ok && showhnRun.scores) await writeShowhnScores(showhnRun.scores)
 
-  const manifest = await buildManifest(runs, runAt, touchedMonths)
+  // seed는 아카이브를 처음 채우는 실행이라 "며칠째 0건"이 의미가 없다.
+  // merge 뒤에 재야 오늘 들어온 신규가 lastNewDates에 반영된다.
+  const stale = seed ? new Map<SourceKey, StaleNew>() : staleNewSources(runs, await lastNewDates(), kstDate(new Date(runAt)))
+  const manifest = await buildManifest(runs, runAt, touchedMonths, stale)
   await writeManifest(manifest)
   await rebuildLatest(Date.parse(runAt))
   await verifyArchiveIntegrity()
   ghOutput('data_valid', 'true')
-  // seed는 아카이브를 처음 채우는 실행이라 "며칠째 0건"이 의미가 없다.
-  const stale = seed ? [] : staleNewWarnings(runs, await lastNewDates(), kstDate(new Date(runAt)))
-  report(runs, newCounts, manifest, seed, stale)
+  report(runs, newCounts, manifest, seed, formatStaleNew(stale))
 }
 
 // 테스트가 dedupeInRun/nativeId를 import 할 수 있어야 하므로 실행은 엔트리일 때만 한다.

@@ -26,7 +26,6 @@ const els = {
   banner: $('banner'),
   sourceBanner: $('sourceBanner'),
   q: $('q'),
-  chips: $('chips'),
   sourceChips: $('sourceChips'),
   dayChips: $('dayChips'),
   periodChips: $('periodChips'),
@@ -80,7 +79,7 @@ function h(tag, attrs, ...children) {
 
 function itemRow(item, opts) {
   const title = h('span', { class: 't' });
-  title.appendChild(h('span', { class: 'badge', 'data-s': item.source, text: SOURCES[item.source] || item.source }));
+  title.appendChild(h('span', { class: 'badge', text: SOURCES[item.source] || item.source }));
   title.appendChild(document.createTextNode(item.title));
   if (opts && opts.showDate) title.appendChild(h('span', { class: 'when', text: item.collectedDate }));
   if (opts && opts.score !== undefined) title.appendChild(h('span', { class: 'when', text: `${opts.score}p` }));
@@ -127,17 +126,23 @@ function renderBanner() {
 // 전역 배너(updatedAt 기준)는 수집 자체가 멈춘 것만 잡는다. 소스 1개가 죽고 나머지 6개가
 // 계속 돌면 updatedAt은 신선하니 배너가 안 뜨고, Actions도 40시간까지 조용하다 (SPEC 4.5).
 // 판정 규칙은 src/run.ts의 alert 규칙과 동일하게 맞춘다.
+// 파싱은 멀쩡한데 신규가 며칠째 0건인 소스는 위 두 장치가 전부 못 잡는다 — consecutiveFailures가
+// 0이고 lastSuccessAt도 신선하기 때문이다 (SPEC 4.5 여섯 번째). 판정은 run.ts가 소스별 임계값으로
+// 이미 내렸고 여기서는 렌더만 한다. 임계값을 이쪽에 복제하면 두 곳이 어긋날 수 있는 값이 하나 는다.
 function sourceHealth() {
   const stalled = new Map();
   const warned = new Map();
+  const dry = new Map();
   const sources = (state.manifest && state.manifest.sources) || {};
   for (const [key, s] of Object.entries(sources)) {
-    if (!s || !(s.consecutiveFailures > 0)) continue;
+    if (!s) continue;
+    if (s.staleNew) dry.set(key, s.staleNew);
+    if (!(s.consecutiveFailures > 0)) continue;
     const noRecentSuccess = !s.lastSuccessAt || Date.parse(s.lastSuccessAt) < Date.now() - ALERT_STALL_MS;
     if (s.consecutiveFailures >= 2 && noRecentSuccess) stalled.set(key, s);
     else warned.set(key, s);
   }
-  return { stalled, warned };
+  return { stalled, warned, dry };
 }
 
 // 차단(403/429)과 파싱 깨짐은 대응이 다르다 — kind/status를 반드시 남긴다 (SPEC 2.4).
@@ -158,9 +163,17 @@ function renderSourceBanner(health) {
     els.sourceBanner.hidden = false;
     return;
   }
-  const warned = [...health.warned].map(([key, s]) => `${SOURCES[key] || key} 직전 실행 실패${errorNote(s)}`);
-  if (warned.length > 0) {
-    els.sourceBanner.textContent = warned.join(' / ');
+  // 수집은 되는데 신규가 마른 소스는 조용한 회색 줄을 실패 경고와 같이 쓴다. 빨간불로 올리지
+  // 않는 이유는 SPEC 4.2와 같다 — 소스가 죽은 게 아니라 그쪽에 올라온 게 없는 것이다.
+  const quiet = [
+    ...[...health.warned].map(([key, s]) => `${SOURCES[key] || key} 직전 실행 실패${errorNote(s)}`),
+    ...[...health.dry].map(([key, s]) =>
+      s.days === null
+        ? `${SOURCES[key] || key} 신규 유입 없음 · 최근 2개월 기록 없음`
+        : `${SOURCES[key] || key} 신규 ${s.days}일째 0건 · 마지막 ${s.lastNewDate}`),
+  ];
+  if (quiet.length > 0) {
+    els.sourceBanner.textContent = quiet.join(' / ');
     els.sourceBanner.className = 'src-warn';
     els.sourceBanner.hidden = false;
     return;
@@ -169,7 +182,7 @@ function renderSourceBanner(health) {
 }
 
 function renderFeed() {
-  els.chips.hidden = true;
+  els.periodChips.hidden = true;
   renderDayChips();
   if (state.sourceFilter === 'showhn') { renderShowhnFeed(); return; }
 
@@ -337,7 +350,7 @@ function renderDayChips() {
 
 function renderSearchChips() {
   els.dayChips.hidden = true;
-  els.chips.hidden = false;
+  els.periodChips.hidden = false;
   els.periodChips.textContent = '';
   for (const [value, label] of [['1', '1개월'], ['3', '3개월'], ['12', '12개월'], ['all', '전체 기간']]) {
     els.periodChips.appendChild(chipButton(label, state.searchPeriod === value, () => { state.searchPeriod = value; render(); }));
@@ -476,7 +489,6 @@ function init() {
 
   const savedDays = lsGet(LS_DAYS);
   if (savedDays && FEED_DAYS.some(([value]) => value === savedDays)) state.feedDays = savedDays;
-  try { localStorage.removeItem('idea-radar.lastSeenAt'); } catch {}
 
   const cached = lsGet(LS_CACHE);
   if (cached) {

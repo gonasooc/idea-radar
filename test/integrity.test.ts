@@ -47,3 +47,31 @@ test('verifyArchiveIntegrity: 파생 파일과 seen이 아카이브와 정확히
   await store.writeJsonAtomic(path.join(store.DATA_DIR, 'latest.json'), '[]\n')
   await assert.rejects(() => verifyArchiveIntegrity(), /not the exact 30-day projection/)
 })
+
+// staleNew는 사이트 상태 줄이 그대로 렌더하는 값이다. 짝이 안 맞는 값이 통과하면
+// "신규 null일째 0건" 같은 문구가 화면에 뜬다.
+test('verifyArchiveIntegrity: staleNew는 없어도 되고, 있으면 짝이 맞아야 한다', async () => {
+  await store.rebuildLatest(Date.parse(manifest.updatedAt))
+  const withStale = (staleNew: unknown): Manifest =>
+    ({ ...manifest, sources: { disquiet: { ...manifest.sources.disquiet, staleNew } } }) as Manifest
+
+  // 이 필드가 생기기 전에 커밋된 manifest도 통과해야 한다 — check.yml의 verify는
+  // collect가 한 번 돌기 전에 먼저 뜬다.
+  await store.writeManifest(manifest)
+  await assert.doesNotReject(() => verifyArchiveIntegrity())
+
+  await store.writeManifest(withStale({ days: 9, lastNewDate: '2026-07-27' }))
+  await assert.doesNotReject(() => verifyArchiveIntegrity())
+
+  await store.writeManifest(withStale({ days: null, lastNewDate: null }))
+  await assert.doesNotReject(() => verifyArchiveIntegrity())
+
+  await store.writeManifest(withStale({ days: 9, lastNewDate: null }))
+  await assert.rejects(() => verifyArchiveIntegrity(), /one of days\/lastNewDate null but not the other/)
+
+  await store.writeManifest(withStale({ days: 9, lastNewDate: '2026-07-27T00:00:00.000Z' }))
+  await assert.rejects(() => verifyArchiveIntegrity(), /staleNew.lastNewDate is invalid/)
+
+  await store.writeManifest(withStale({ days: -1, lastNewDate: '2026-07-27' }))
+  await assert.rejects(() => verifyArchiveIntegrity(), /staleNew.days is invalid/)
+})

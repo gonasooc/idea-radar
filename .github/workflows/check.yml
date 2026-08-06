@@ -46,6 +46,12 @@ jobs:
       - name: typecheck
         run: npx tsc --noEmit
 
+      # tsc는 src/test만 본다. app.js는 빌드도 번들도 없이 그대로 배포되므로 문법 오류가 나면
+      # 사이트는 흰 화면인데 Actions는 초록으로 남는다 — SPEC 4.5의 "조용한 죽음"과 같은 모양이다.
+      # 의존성 0으로 막을 수 있는 건 파싱까지다.
+      - name: parse site/app.js
+        run: node --check site/app.js
+
       # 디렉터리 인자(node --test test/)는 Node가 모듈 경로로 읽어 실패한다. 글롭이어야 한다.
       - name: test
         run: node --test 'test/*.test.ts'
