@@ -1,19 +1,19 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-08-18T19:53:42.813Z",
+  "updatedAt": "2026-08-19T02:43:10.605Z",
   "lastCollectedDate": "2026-08-19",
   "months": [
     {
       "key": "2026-08",
       "hasShowhn": true,
       "counts": {
-        "geeknews-show": 115,
+        "geeknews-show": 117,
         "producthunt": 317,
         "jocohunt": 30,
-        "syde": 20,
+        "syde": 21,
         "ilddan": 8,
         "disquiet": 80,
-        "showhn": 2314
+        "showhn": 2337
       }
     },
     {
@@ -32,44 +32,44 @@
   ],
   "sources": {
     "geeknews-show": {
-      "lastSuccessAt": "2026-08-18T19:53:42.813Z",
+      "lastSuccessAt": "2026-08-19T02:43:10.605Z",
       "lastRawCount": 40,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "disquiet": {
-      "lastSuccessAt": "2026-08-18T19:53:42.813Z",
+      "lastSuccessAt": "2026-08-19T02:43:10.605Z",
       "lastRawCount": 40,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "syde": {
-      "lastSuccessAt": "2026-08-18T19:53:42.813Z",
+      "lastSuccessAt": "2026-08-19T02:43:10.605Z",
       "lastRawCount": 20,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "jocohunt": {
-      "lastSuccessAt": "2026-08-18T19:53:42.813Z",
+      "lastSuccessAt": "2026-08-19T02:43:10.605Z",
       "lastRawCount": 200,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "ilddan": {
-      "lastSuccessAt": "2026-08-18T19:53:42.813Z",
+      "lastSuccessAt": "2026-08-19T02:43:10.605Z",
       "lastRawCount": 24,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "producthunt": {
-      "lastSuccessAt": "2026-08-18T19:53:42.813Z",
+      "lastSuccessAt": "2026-08-19T02:43:10.605Z",
       "lastRawCount": 50,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "showhn": {
-      "lastSuccessAt": "2026-08-18T19:53:42.813Z",
-      "lastRawCount": 465,
+      "lastSuccessAt": "2026-08-19T02:43:10.605Z",
+      "lastRawCount": 459,
       "consecutiveFailures": 0,
       "lastError": null
     }
