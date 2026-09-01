@@ -1,17 +1,17 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-08-31T23:20:33.826Z",
+  "updatedAt": "2026-09-01T06:45:01.545Z",
   "lastCollectedDate": "2026-09-01",
   "months": [
     {
       "key": "2026-09",
       "hasShowhn": true,
       "counts": {
-        "geeknews-show": 1,
+        "geeknews-show": 3,
         "jocohunt": 1,
         "ilddan": 1,
         "producthunt": 2,
-        "showhn": 108
+        "showhn": 129
       }
     },
     {
@@ -43,44 +43,44 @@
   ],
   "sources": {
     "geeknews-show": {
-      "lastSuccessAt": "2026-08-31T23:20:33.826Z",
+      "lastSuccessAt": "2026-09-01T06:45:01.545Z",
       "lastRawCount": 40,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "disquiet": {
-      "lastSuccessAt": "2026-08-31T23:20:33.826Z",
+      "lastSuccessAt": "2026-09-01T06:45:01.545Z",
       "lastRawCount": 40,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "syde": {
-      "lastSuccessAt": "2026-08-31T23:20:33.826Z",
+      "lastSuccessAt": "2026-09-01T06:45:01.545Z",
       "lastRawCount": 20,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "jocohunt": {
-      "lastSuccessAt": "2026-08-31T23:20:33.826Z",
+      "lastSuccessAt": "2026-09-01T06:45:01.545Z",
       "lastRawCount": 218,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "ilddan": {
-      "lastSuccessAt": "2026-08-31T23:20:33.826Z",
+      "lastSuccessAt": "2026-09-01T06:45:01.545Z",
       "lastRawCount": 24,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "producthunt": {
-      "lastSuccessAt": "2026-08-31T23:20:33.826Z",
+      "lastSuccessAt": "2026-09-01T06:45:01.545Z",
       "lastRawCount": 50,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "showhn": {
-      "lastSuccessAt": "2026-08-31T23:20:33.826Z",
-      "lastRawCount": 421,
+      "lastSuccessAt": "2026-09-01T06:45:01.545Z",
+      "lastRawCount": 419,
       "consecutiveFailures": 0,
       "lastError": null
     }
