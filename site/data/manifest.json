@@ -1,18 +1,18 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-09-03T21:52:21.041Z",
+  "updatedAt": "2026-09-04T06:30:58.051Z",
   "lastCollectedDate": "2026-09-04",
   "months": [
     {
       "key": "2026-09",
       "hasShowhn": true,
       "counts": {
-        "geeknews-show": 20,
+        "geeknews-show": 22,
         "jocohunt": 5,
         "ilddan": 1,
         "producthunt": 64,
         "syde": 2,
-        "showhn": 541
+        "showhn": 555
       }
     },
     {
@@ -44,44 +44,44 @@
   ],
   "sources": {
     "geeknews-show": {
-      "lastSuccessAt": "2026-09-03T21:52:21.041Z",
+      "lastSuccessAt": "2026-09-04T06:30:58.051Z",
       "lastRawCount": 40,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "disquiet": {
-      "lastSuccessAt": "2026-09-03T21:52:21.041Z",
+      "lastSuccessAt": "2026-09-04T06:30:58.051Z",
       "lastRawCount": 40,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "syde": {
-      "lastSuccessAt": "2026-09-03T21:52:21.041Z",
+      "lastSuccessAt": "2026-09-04T06:30:58.051Z",
       "lastRawCount": 20,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "jocohunt": {
-      "lastSuccessAt": "2026-09-03T21:52:21.041Z",
+      "lastSuccessAt": "2026-09-04T06:30:58.051Z",
       "lastRawCount": 222,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "ilddan": {
-      "lastSuccessAt": "2026-09-03T21:52:21.041Z",
+      "lastSuccessAt": "2026-09-04T06:30:58.051Z",
       "lastRawCount": 24,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "producthunt": {
-      "lastSuccessAt": "2026-09-03T21:52:21.041Z",
+      "lastSuccessAt": "2026-09-04T06:30:58.051Z",
       "lastRawCount": 50,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "showhn": {
-      "lastSuccessAt": "2026-09-03T21:52:21.041Z",
-      "lastRawCount": 563,
+      "lastSuccessAt": "2026-09-04T06:30:58.051Z",
+      "lastRawCount": 552,
       "consecutiveFailures": 0,
       "lastError": null
     }
