@@ -1,19 +1,19 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-09-13T21:39:07.871Z",
+  "updatedAt": "2026-09-14T07:02:40.975Z",
   "lastCollectedDate": "2026-09-14",
   "months": [
     {
       "key": "2026-09",
       "hasShowhn": true,
       "counts": {
-        "geeknews-show": 74,
+        "geeknews-show": 79,
         "jocohunt": 25,
         "ilddan": 4,
-        "producthunt": 216,
+        "producthunt": 234,
         "syde": 25,
-        "disquiet": 40,
-        "showhn": 1710
+        "disquiet": 80,
+        "showhn": 1741
       }
     },
     {
@@ -45,44 +45,44 @@
   ],
   "sources": {
     "geeknews-show": {
-      "lastSuccessAt": "2026-09-13T21:39:07.871Z",
+      "lastSuccessAt": "2026-09-14T07:02:40.975Z",
       "lastRawCount": 40,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "disquiet": {
-      "lastSuccessAt": "2026-09-13T21:39:07.871Z",
+      "lastSuccessAt": "2026-09-14T07:02:40.975Z",
       "lastRawCount": 40,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "syde": {
-      "lastSuccessAt": "2026-09-13T21:39:07.871Z",
+      "lastSuccessAt": "2026-09-14T07:02:40.975Z",
       "lastRawCount": 20,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "jocohunt": {
-      "lastSuccessAt": "2026-09-13T21:39:07.871Z",
+      "lastSuccessAt": "2026-09-14T07:02:40.975Z",
       "lastRawCount": 242,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "ilddan": {
-      "lastSuccessAt": "2026-09-13T21:39:07.871Z",
+      "lastSuccessAt": "2026-09-14T07:02:40.975Z",
       "lastRawCount": 24,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "producthunt": {
-      "lastSuccessAt": "2026-09-13T21:39:07.871Z",
+      "lastSuccessAt": "2026-09-14T07:02:40.975Z",
       "lastRawCount": 50,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "showhn": {
-      "lastSuccessAt": "2026-09-13T21:39:07.871Z",
-      "lastRawCount": 460,
+      "lastSuccessAt": "2026-09-14T07:02:40.975Z",
+      "lastRawCount": 463,
       "consecutiveFailures": 0,
       "lastError": null
     }
