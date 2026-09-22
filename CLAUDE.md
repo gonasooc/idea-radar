@@ -1,6 +1,10 @@
+@AGENTS.md
+
 # CLAUDE.md
 
 idea-radar 작업 시 지켜야 할 불변식. 구현 전 [SPEC.md](SPEC.md)를 읽고, 컬렉터를 만들거나 고칠 때는 [spec/sources/](spec/sources/)의 해당 파일을 먼저 읽는다.
+
+문서를 읽고 쓰는 규칙은 위에서 연결한 [AGENTS.md](AGENTS.md)에, 프로젝트 문서 홈은 [docs/README.md](docs/README.md)에 있다. 아래 불변식이 그 규칙보다 우선한다.
 
 ## 깨면 데이터를 잃는 것
 

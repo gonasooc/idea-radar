@@ -26,9 +26,11 @@ Show HN을 뺀 나머지가 하루 25~30건이다. 아침에 훑기 좋은 양�
 
 | 파일 | 내용 |
 |---|---|
+| [docs/README.md](docs/README.md) | 프로젝트 문서 홈. 현재 상황과 작업 목록 — **여기서 시작** |
 | [SPEC.md](SPEC.md) | 아키텍처, 데이터 모델, 실패 처리, 사이트 동작 — **구현 전 필독** |
 | [TASKS.md](TASKS.md) | 구현 순서와 단계별 완료 기준 |
 | [CLAUDE.md](CLAUDE.md) | 코딩 에이전트용 불변식 요약 |
+| [AGENTS.md](AGENTS.md) | 에이전트의 문서 읽기·작성 규칙 |
 | [spec/sources/](spec/sources/) | 소스별 수집 계약 7개. 2026-07-29에 실제 응답을 받아 작성됨 |
 | [spec/source-research.json](spec/source-research.json) | 현재·후보·제외 소스의 실측 조사 원본 |
 
