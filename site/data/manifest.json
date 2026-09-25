@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-09-24T22:43:23.487Z",
+  "updatedAt": "2026-09-25T06:33:59.185Z",
   "lastCollectedDate": "2026-09-25",
   "months": [
     {
@@ -13,7 +13,7 @@
         "producthunt": 528,
         "syde": 39,
         "disquiet": 120,
-        "showhn": 3120
+        "showhn": 3142
       }
     },
     {
@@ -45,13 +45,13 @@
   ],
   "sources": {
     "geeknews-show": {
-      "lastSuccessAt": "2026-09-24T22:43:23.487Z",
+      "lastSuccessAt": "2026-09-25T06:33:59.185Z",
       "lastRawCount": 40,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "disquiet": {
-      "lastSuccessAt": "2026-09-24T22:43:23.487Z",
+      "lastSuccessAt": "2026-09-25T06:33:59.185Z",
       "lastRawCount": 40,
       "consecutiveFailures": 0,
       "lastError": null
@@ -59,35 +59,35 @@
     "syde": {
       "lastSuccessAt": "2026-09-21T22:48:24.738Z",
       "lastRawCount": 20,
-      "consecutiveFailures": 6,
+      "consecutiveFailures": 7,
       "lastError": {
-        "at": "2026-09-24T22:43:23.487Z",
+        "at": "2026-09-25T06:33:59.185Z",
         "kind": "http",
         "status": 429,
         "message": "https://syde.kr/showcase returned HTTP 429"
       }
     },
     "jocohunt": {
-      "lastSuccessAt": "2026-09-24T22:43:23.487Z",
+      "lastSuccessAt": "2026-09-25T06:33:59.185Z",
       "lastRawCount": 259,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "ilddan": {
-      "lastSuccessAt": "2026-09-24T22:43:23.487Z",
+      "lastSuccessAt": "2026-09-25T06:33:59.185Z",
       "lastRawCount": 24,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "producthunt": {
-      "lastSuccessAt": "2026-09-24T22:43:23.487Z",
+      "lastSuccessAt": "2026-09-25T06:33:59.185Z",
       "lastRawCount": 50,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "showhn": {
-      "lastSuccessAt": "2026-09-24T22:43:23.487Z",
-      "lastRawCount": 566,
+      "lastSuccessAt": "2026-09-25T06:33:59.185Z",
+      "lastRawCount": 573,
       "consecutiveFailures": 0,
       "lastError": null
     }
