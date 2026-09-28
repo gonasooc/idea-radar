@@ -37,6 +37,7 @@ idea-radar는 신규 앱·웹서비스를 매일 아침 한 페이지에서 훑�
 ## 진행 중·예정·보류 작업
 
 - [docs/work/W-001-main-kill-test.md](work/W-001-main-kill-test.md) — 2주 뒤 kill test와 그 뒤 판단 — 예정
+- [docs/work/W-002-main-ui-usability.md](work/W-002-main-ui-usability.md) — 사이트 사용성·UI 개선(검색·신선도 판정·실행 경계·다크 대비·브랜드 에셋). 구현과 헤드리스 검증은 끝났고 커밋·실기기 확인이 남음 — 진행 중
 
 상태는 `예정`, `진행 중`, `보류`, `완료`를 사용한다. 상세 내용은 작업 문서에서 관리한다.
 
@@ -47,6 +48,7 @@ idea-radar는 신규 앱·웹서비스를 매일 아침 한 페이지에서 훑�
 ## 사람이 판단할 사항
 
 - **세션 기록을 어디에 둘 것인가.** 기존 [sessions/](../sessions/)와 새로 생긴 `docs/sessions/`가 같은 역할을 한다. 기존 파일은 [README.md](../README.md)와 [SPEC.md](../SPEC.md)가 상대경로로 참조하고 있어 옮기면 링크를 함께 고쳐야 하므로, 이번에는 그 자리에 뒀다. 한쪽으로 합칠지는 결정되지 않았다.
+- **사이트 개선(W-002)에서 바꾼 피드 동작과 다크 팔레트를 유지할지.** 수집 실행 경계, `1일`→`오늘`, 같은 실행 안의 소스 칩 순서, 다크 `--fg-faint`·`--edge` 값이다. 근거와 되돌리는 방법은 [docs/work/W-002-main-ui-usability.md](work/W-002-main-ui-usability.md)에 있다.
 - **kill test를 실제로 했는지 확인이 필요하다.** [TASKS.md](../TASKS.md) 8절의 예정일은 2026-08-12인데 저장소에 실행 기록이 없다. 자세한 내용은 [docs/work/W-001-main-kill-test.md](work/W-001-main-kill-test.md)에 있다.
 
 ## 기록을 찾을 때

@@ -35,7 +35,7 @@
 | 준비 | `npm ci` | Node 24 이상. devDependencies만 설치한다 |
 | 실행 (수집) | `node src/run.ts` | Node 24 이상, 네트워크. 파일을 쓴다 |
 | 실행 (수집 확인만) | `node src/run.ts --dry-run` | Node 24 이상, 네트워크. 파일을 쓰지 않는다 |
-| 실행 (뷰어) | `npx serve site` | 정적 파일 서버면 무엇이든 된다. 미확인 — 이 세션에서 실행하지 않았다 |
+| 실행 (뷰어) | `npx serve site` | 정적 파일 서버면 무엇이든 된다. `npx serve`는 미확인이고, 2026-09-28에는 의존성 없는 Node 정적 서버로 띄워 헤드리스 Chrome(CDP)으로 화면을 확인했다 — 방법은 [docs/work/W-002-main-ui-usability.md](work/W-002-main-ui-usability.md) |
 | 테스트 | `node --test 'test/*.test.ts'` | Node 24 이상. 네트워크 불필요 |
 | 정적 검사 | `npx tsc --noEmit` | devDependencies 설치 필요 |
 | 데이터 검증 | `node src/verify.ts` | Node 24 이상. 커밋 직전 게이트와 같은 것. 실패 시 non-zero |

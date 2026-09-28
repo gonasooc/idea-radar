@@ -42,10 +42,12 @@
   </div>
   <div id="banner" role="status" hidden></div>
   <div id="sourceBanner" role="status" hidden></div>
-  <input id="q" type="search" placeholder="검색 — 제목·한줄설명 (최근 12개월)" autocomplete="off" aria-label="제목·한줄설명 검색">
-  <div class="chip-row" id="sourceChips"></div>
-  <div class="chip-row" id="dayChips"></div>
-  <div class="chip-row" id="periodChips" hidden></div>
+  <form id="searchForm" role="search">
+    <input id="q" type="search" placeholder="검색 — 제목·한줄설명 (최근 12개월)" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="search" aria-label="제목·한줄설명 검색">
+  </form>
+  <div class="chip-row" id="sourceChips" role="group" aria-label="소스"></div>
+  <div class="chip-row" id="dayChips" role="group" aria-label="기간"></div>
+  <div class="chip-row" id="periodChips" role="group" aria-label="검색 기간" hidden></div>
   <div id="countLine"></div>
 </header>
 <main id="list"></main>

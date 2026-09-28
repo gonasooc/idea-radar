@@ -17,6 +17,7 @@
   --accent: #3ecf8e;
   --accent-deep: #0b7e58; /* 5.1:1 — 링크·포커스 링으로 쓰므로 텍스트 기준을 넘겨야 한다 */
   --accent-soft: #d8f0e4;
+  --on-accent: #171717; /* --accent 면 위의 글자 — 두 테마 공통, 8.98:1 */
   --active: #1c1c1c;
   --active-fg: #ffffff;
   --danger-bg: #fff1f0;
@@ -30,18 +31,21 @@
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* 다크 대비는 2026-09-28에 카드(#1c1c1c) / 배경(#171717) 두 면에서 계산했다. 본문 14.6 / 15.3,
+   제목 11.7, 설명·메타 6.6 / 6.9, 날짜·푸터·글리프 5.1 / 5.3(행 hover 위 4.6), 포커스 링 9.6 / 10.1.
+   아래 media 블록은 이 블록을 그대로 복제한 것이다 — 한쪽만 고치면 토글 다크와 시스템 다크가 달라진다. */
 :root[data-theme="dark"] {
   color-scheme: dark;
   --bg: #171717;
   --fg: #ededed;
   --fg-secondary: #d6d6d6;
   --fg-dim: #a1a1a1;
-  --fg-faint: #737373;
+  --fg-faint: #8c8c8c; /* #737373은 3.6:1이라 날짜·↗가 본문 기준(4.5:1)에 못 미쳤다 */
   --card: #1c1c1c;
   --surface: #202020;
   --surface-hover: #252525;
-  --line: #2d2d2d;
-  --edge: #2d2d2d;
+  --line: #2d2d2d; /* 1.24:1 카드 — 카드 안 구분선 */
+  --edge: #3a3a3a; /* 1.50 카드 / 1.58 배경 — 예전엔 --line과 같은 값이라 컨테이너 경계가 구분선과 구별되지 않았다 */
   --line-strong: #424242;
   --accent: #3ecf8e;
   --accent-deep: #52d9a0;
@@ -51,7 +55,8 @@
   --danger-bg: #3a1f1e;
   --danger-fg: #ffb4ad;
   --danger-line: #713936;
-  --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.25), 0 12px 32px rgba(0, 0, 0, 0.12);
+  /* 흐림은 거리의 2배로 라이트와 같은 모양이다 (SPEC 6.6). 깊이는 투명도로만 테마에 맞춘다. */
+  --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.25), 0 8px 16px rgba(0, 0, 0, 0.12);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -61,12 +66,12 @@
     --fg: #ededed;
     --fg-secondary: #d6d6d6;
     --fg-dim: #a1a1a1;
-    --fg-faint: #737373;
+    --fg-faint: #8c8c8c;
     --card: #1c1c1c;
     --surface: #202020;
     --surface-hover: #252525;
     --line: #2d2d2d;
-    --edge: #2d2d2d;
+    --edge: #3a3a3a;
     --line-strong: #424242;
     --accent: #3ecf8e;
     --accent-deep: #52d9a0;
@@ -76,7 +81,7 @@
     --danger-bg: #3a1f1e;
     --danger-fg: #ffb4ad;
     --danger-line: #713936;
-    --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.25), 0 12px 32px rgba(0, 0, 0, 0.12);
+    --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.25), 0 8px 16px rgba(0, 0, 0, 0.12);
   }
 }
 
@@ -97,8 +102,24 @@ body {
   background: var(--bg);
   color: var(--fg);
   font: 16px/1.5 "Helvetica Neue", Helvetica, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", sans-serif;
+  /* 한국어는 띄어쓰기에서만 줄을 바꾼다("서비/스"처럼 단어가 갈라지지 않게). 띄어쓰기 없이 긴 문자열은
+     제목·설명의 overflow-wrap: anywhere가 받아 준다. */
+  word-break: keep-all;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+/* 홈 화면 앱(black-translucent)에서 상태 표시줄 자리를 배경색으로 덮는다. 목록이 시계 밑으로 흘러가며
+   겹쳐 보이지 않게 한다. 브라우저 탭에서는 inset이 0이라 높이도 0이다. */
+body::before {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 3;
+  height: env(safe-area-inset-top, 0px);
+  background: var(--bg);
+  content: "";
 }
 
 button,
@@ -210,8 +231,10 @@ button.on {
   font-weight: 500;
 }
 
-/* 소스 1~2개가 직전 실행에서만 실패한 것은 정상 범위다 (SPEC 4.2). 빨간불로 만들지 않는다. */
-#sourceBanner.src-warn {
+/* 소스 1~2개가 직전 실행에서만 실패한 것은 정상 범위다 (SPEC 4.2). 빨간불로 만들지 않는다.
+   manifest를 받지 못한 것(#banner.net-warn)도 수집이 멈춘 게 아니라 이쪽 연결 문제라 같은 회색으로 쓴다. */
+#sourceBanner.src-warn,
+#banner.net-warn {
   margin: 8px 0;
   padding: 9px 12px;
   border: 1px solid var(--line);
@@ -219,7 +242,21 @@ button.on {
   background: var(--surface);
   color: var(--fg-dim);
   font-size: 13px;
+  font-weight: 400;
 }
+
+#banner.net-warn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+/* display:flex가 UA의 [hidden]{display:none}을 이기므로 명시적으로 되돌린다 */
+#banner[hidden] { display: none; }
+
+.retry-btn { flex: 0 0 auto; }
+.empty .retry-btn { margin-top: 14px; }
 
 #q {
   width: 100%;
@@ -328,9 +365,11 @@ button.on {
   box-shadow: var(--shadow-raised);
 }
 
+/* 홈 화면 앱(status-bar-style black-translucent)은 화면 맨 위까지 그리므로 상태 표시줄 아래에 붙인다.
+   브라우저 탭에서는 이 값이 0이다. */
 .day-head {
   position: sticky;
-  top: 0;
+  top: env(safe-area-inset-top, 0px);
   z-index: 2;
   margin: 0;
   padding: 9px 14px;
@@ -345,6 +384,16 @@ button.on {
 }
 
 .day-head:first-child { border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+
+/* 한 날짜 안의 수집 실행 경계(하루 두 번). 날짜 헤더보다 한 단계 낮게, 붙지 않고 함께 흘러간다. */
+.run-head {
+  margin: 0;
+  padding: 10px 14px 0;
+  color: var(--fg-faint);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
 
 .item-wrap { position: relative; }
 /* last-of-type이라 뒤에 '남은 N건 보기' 버튼이 붙어도 마지막 행의 밑줄이 사라진다 */
@@ -384,12 +433,29 @@ button.on {
   -webkit-line-clamp: 2;
 }
 
+/* 검색어가 클램프 밖에만 있는 행은 설명을 다 보여 준다 (app.js revealHiddenMatches) */
+.row .d.full {
+  display: block;
+  -webkit-line-clamp: unset;
+}
+
 .row .when {
   margin-left: 7px;
   color: var(--fg-faint);
   font-size: 13px;
   font-weight: 400;
   letter-spacing: 0;
+  white-space: nowrap; /* 2026-08-31이 하이픈에서 두 줄로 갈라지지 않게 */
+}
+
+/* 검색어 강조. 설명(--fg-dim) 안에서도 눈에 띄도록 글자를 --fg로 올린다 — 라이트 14.9:1 / 다크 10.6:1 */
+mark {
+  padding: 0 1px;
+  border-radius: var(--radius-xs);
+  background: var(--accent-soft);
+  color: var(--fg);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
 
 .badge {
@@ -417,31 +483,48 @@ button.on {
   content: "";
 }
 
+/* 탭 영역은 행 오른쪽 여백(.row의 padding-right) 전체 높이다. ↗ 상자만 누를 수 있으면 상자 위아래를
+   눌렀을 때 제품 사이트 대신 원문이 열린다. 보이는 상자는 안쪽 span이 그린다. */
 .ext {
   position: absolute;
-  top: 50%;
-  right: 12px;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  width: 52px;
+  place-items: center;
+  color: var(--fg-faint);
+  font-size: 16px;
+  text-decoration: none;
+}
+
+.ext span {
   display: grid;
   width: 30px;
   height: 30px;
   place-items: center;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  color: var(--fg-faint);
-  font-size: 16px;
-  text-decoration: none;
-  transform: translateY(-50%);
   transition: color 160ms var(--ease-out), background-color 160ms var(--ease-out), border-color 160ms var(--ease-out), transform 160ms var(--ease-out);
 }
 
-.ext:hover {
+.ext:hover { color: var(--accent-deep); }
+
+.ext:hover span {
   border-color: var(--line);
   background: var(--card);
-  color: var(--accent-deep);
-  transform: translateY(-50%) translateY(-1px);
+  transform: translateY(-1px);
 }
 
-.ext:active { transform: translateY(-50%) translateY(1px); }
+.ext:active span { transform: translateY(1px); }
+
+/* 포커스 링은 세로로 긴 탭 영역이 아니라 보이는 상자에 그린다 */
+.ext:focus-visible { outline: none; }
+
+.ext:focus-visible span {
+  outline: 2px solid var(--accent-deep);
+  outline-offset: 2px;
+}
 
 .empty {
   margin: 0;
@@ -452,18 +535,27 @@ button.on {
   text-align: center;
 }
 
+/* 첫 줄이 무슨 상태인지, 둘째 줄이 그 근거(마지막 수집·가장 최근 항목)다 */
+.empty > div + div {
+  margin-top: 2px;
+  color: var(--fg-faint);
+  font-size: 13px;
+}
+
 .more-btn {
   width: calc(100% - 24px);
   margin: 12px;
   border-color: var(--accent-deep);
   background: var(--accent);
-  color: #171717;
+  color: var(--on-accent);
 }
 
+/* hover는 일반 버튼처럼 라이트에선 어둡게, 다크에선 밝게 간다. 예전 라이트 hover(--accent-deep 면)는
+   글자 대비가 3.5:1이었다 — 지금 값은 라이트 6.8:1 / 다크 9.7:1 */
 .more-btn:hover {
   border-color: var(--accent-deep);
-  background: var(--accent-deep);
-  color: #171717;
+  background: color-mix(in srgb, var(--accent) 85%, var(--fg));
+  color: var(--on-accent);
 }
 
 .status {
@@ -504,8 +596,10 @@ button.on {
     padding: 13px 50px 13px 13px;
   }
 
-  .day-head { padding-inline: 13px; }
-  .ext { right: 10px; width: 36px; height: 36px; }
+  .day-head,
+  .run-head { padding-inline: 13px; }
+  .ext { width: 50px; }
+  .ext span { width: 36px; height: 36px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
