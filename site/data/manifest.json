@@ -1,16 +1,17 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-09-30T23:11:20.969Z",
+  "updatedAt": "2026-10-01T07:45:53.103Z",
   "lastCollectedDate": "2026-10-01",
   "months": [
     {
       "key": "2026-10",
       "hasShowhn": true,
       "counts": {
-        "geeknews-show": 6,
-        "syde": 1,
+        "geeknews-show": 8,
+        "syde": 3,
         "ilddan": 1,
-        "showhn": 131
+        "producthunt": 23,
+        "showhn": 160
       }
     },
     {
@@ -55,44 +56,44 @@
   ],
   "sources": {
     "geeknews-show": {
-      "lastSuccessAt": "2026-09-30T23:11:20.969Z",
+      "lastSuccessAt": "2026-10-01T07:45:53.103Z",
       "lastRawCount": 40,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "disquiet": {
-      "lastSuccessAt": "2026-09-30T23:11:20.969Z",
+      "lastSuccessAt": "2026-10-01T07:45:53.103Z",
       "lastRawCount": 40,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "syde": {
-      "lastSuccessAt": "2026-09-30T23:11:20.969Z",
+      "lastSuccessAt": "2026-10-01T07:45:53.103Z",
       "lastRawCount": 20,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "jocohunt": {
-      "lastSuccessAt": "2026-09-30T23:11:20.969Z",
+      "lastSuccessAt": "2026-10-01T07:45:53.103Z",
       "lastRawCount": 266,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "ilddan": {
-      "lastSuccessAt": "2026-09-30T23:11:20.969Z",
+      "lastSuccessAt": "2026-10-01T07:45:53.103Z",
       "lastRawCount": 24,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "producthunt": {
-      "lastSuccessAt": "2026-09-30T23:11:20.969Z",
+      "lastSuccessAt": "2026-10-01T07:45:53.103Z",
       "lastRawCount": 50,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "showhn": {
-      "lastSuccessAt": "2026-09-30T23:11:20.969Z",
-      "lastRawCount": 535,
+      "lastSuccessAt": "2026-10-01T07:45:53.103Z",
+      "lastRawCount": 546,
       "consecutiveFailures": 0,
       "lastError": null
     }
