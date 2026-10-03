@@ -1,18 +1,18 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-02T23:13:37.695Z",
+  "updatedAt": "2026-10-03T07:04:24.030Z",
   "lastCollectedDate": "2026-10-03",
   "months": [
     {
       "key": "2026-10",
       "hasShowhn": true,
       "counts": {
-        "geeknews-show": 21,
-        "syde": 9,
+        "geeknews-show": 27,
+        "syde": 10,
         "ilddan": 2,
-        "producthunt": 72,
+        "producthunt": 97,
         "jocohunt": 3,
-        "showhn": 426
+        "showhn": 442
       }
     },
     {
@@ -57,44 +57,44 @@
   ],
   "sources": {
     "geeknews-show": {
-      "lastSuccessAt": "2026-10-02T23:13:37.695Z",
+      "lastSuccessAt": "2026-10-03T07:04:24.030Z",
       "lastRawCount": 40,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "disquiet": {
-      "lastSuccessAt": "2026-10-02T23:13:37.695Z",
+      "lastSuccessAt": "2026-10-03T07:04:24.030Z",
       "lastRawCount": 40,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "syde": {
-      "lastSuccessAt": "2026-10-02T23:13:37.695Z",
+      "lastSuccessAt": "2026-10-03T07:04:24.030Z",
       "lastRawCount": 20,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "jocohunt": {
-      "lastSuccessAt": "2026-10-02T23:13:37.695Z",
+      "lastSuccessAt": "2026-10-03T07:04:24.030Z",
       "lastRawCount": 269,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "ilddan": {
-      "lastSuccessAt": "2026-10-02T23:13:37.695Z",
+      "lastSuccessAt": "2026-10-03T07:04:24.030Z",
       "lastRawCount": 24,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "producthunt": {
-      "lastSuccessAt": "2026-10-02T23:13:37.695Z",
+      "lastSuccessAt": "2026-10-03T07:04:24.030Z",
       "lastRawCount": 50,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "showhn": {
-      "lastSuccessAt": "2026-10-02T23:13:37.695Z",
-      "lastRawCount": 614,
+      "lastSuccessAt": "2026-10-03T07:04:24.030Z",
+      "lastRawCount": 600,
       "consecutiveFailures": 0,
       "lastError": null
     }
