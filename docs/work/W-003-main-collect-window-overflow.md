@@ -6,7 +6,7 @@
 
 ## 현재 상황
 
-2026-10-12 사용자가 collect 워크플로 #165~#171(10/9~10/12) 연속 실패의 원인을 물었다. 원인은 SYDE 응답 형식 변경이었고, 고쳐서 푸시했다(`2496747`). 조사 중에 별개로 Disquiet가 매주 승인분의 앞 40건만 수집해 7월 이후 607건을 잃어 온 것을 찾았다. 읽는 범위를 바꾸고, 창 넘침을 빨간불로 올리고, 밀린 분량을 되찾는 `--backfill`을 구현해 검증했다. 되찾기는 로컬에서 실행했다(2026-10-12 13:55 KST, 607건). 코드·문서와 되찾은 데이터는 따로 커밋한다. 데이터 커밋을 되돌리면 아카이브 행을 지우게 되기 때문이다(CLAUDE.md 5).
+2026-10-12 사용자가 collect 워크플로 #165~#171(10/9~10/12) 연속 실패의 원인을 물었다. 원인은 SYDE 응답 형식 변경이었고, 고쳐서 푸시했다(`2496747`). 조사 중에 별개로 Disquiet가 매주 승인분의 앞 40건만 수집해 7월 이후 607건을 잃어 온 것을 찾았다. 읽는 범위를 바꾸고, 창 넘침을 빨간불로 올리고, 밀린 분량을 되찾는 `--backfill`을 구현해 검증했다. 되찾기는 로컬에서 실행했다(2026-10-12 13:55 KST, 607건). 코드·문서(`069286c`)와 되찾은 데이터(`a5fb6a2`)를 따로 커밋해 푸시했고 Pages 배포까지 확인했다. 따로 커밋한 이유는 데이터 커밋을 되돌리면 아카이브 행을 지우게 되기 때문이다(CLAUDE.md 5). 남은 것은 예약 실행에서의 확인(SYDE 복귀, 다음 승인일 깊은 스캔)이다.
 
 - 완료 조건:
   - SYDE가 예약 실행에서 `[ok]`로 돌아오고 밀린 7건이 들어온다. 빨간불이 꺼진다.
@@ -73,22 +73,21 @@
 - `npx tsc --noEmit` — 통과. `node --test 'test/*.test.ts'` — 89/89 통과(새 [test/window-overflow.test.ts](../../test/window-overflow.test.ts) 11개 포함). `node src/verify.ts` — `site/data OK`. 모두 Node v24.19.0.
 - `node src/run.ts --only=disquiet --backfill`(실제 실행) — 통과. `parsed=1060 new=607`, `overflow_sources=` 비어 있음, 이어서 `node src/verify.ts` `site/data OK`. Node v24.19.0.
 - CI `check`(SYDE 수정 `2496747` 푸시) — success.
+- CI `check`(`069286c`·`a5fb6a2` 푸시) — success. 같은 푸시의 `collect`(push 이벤트, 배포만) — success. 배포된 `manifest.json`의 `updatedAt` 2026-10-12T04:55:33.924Z, disquiet `lastRawCount` 1060으로 되찾기 반영을 확인했다.
 - 실제 예약 실행에서 SYDE 복귀, 승인일 깊은 스캔 — **미확인**.
 
 ### 세션 메모
 
-- 2026-10-12 · claude-code (Opus 5.5) — SYDE 수정을 푸시했고, Disquiet 스캔·넘침 빨간불·되찾기 구현과 검증, 되찾기 로컬 실행까지 마쳤다. 다음은 코드·문서 커밋과 데이터 커밋을 푸시하는 것이고(오후 예약 실행 전), 그다음 그 실행에서 SYDE 복귀를 확인한다.
+- 2026-10-12 · claude-code (Opus 5.5) — SYDE 수정, Disquiet 스캔·넘침 빨간불·되찾기를 구현·검증해 세 커밋(`2496747`, `069286c`, `a5fb6a2`)을 푸시하고 배포를 확인했다. 다음 행동은 그날 오후 예약 실행 로그에서 SYDE 복귀를 확인하는 것이다.
 
 ## 남은 일
 
 - [x] SYDE 수정 커밋·푸시 (`2496747`)
-- [ ] Disquiet 스캔·창 넘침 빨간불·`--backfill` 코드와 문서를 커밋·푸시한다.
+- [x] Disquiet 스캔·창 넘침 빨간불·`--backfill` 코드와 문서 커밋·푸시 (`069286c`)
 - [x] 되찾기 로컬 실행: `node src/run.ts --only=disquiet --backfill` → `node src/verify.ts` 통과(607건).
-- [ ] 되찾은 데이터를 코드와 **별도 커밋**으로 푸시한다. 예약 실행과 겹쳐 origin과 갈라지면 데이터 JSON은 병합하지 말고 다시 계산한다(origin으로 리셋한 뒤 되찾기를 다시 실행, [AGENTS.md](../../AGENTS.md)).
+- [x] 되찾은 데이터를 코드와 별도 커밋으로 푸시 (`a5fb6a2`), Pages 배포 확인.
 - [ ] 다음 예약 실행에서 SYDE `[ok] … new=7` 근처, report 스텝 `ok`(빨간불 해제)를 확인한다.
 - [ ] 2026-10-19(월) 아침 실행에서 Disquiet `parsed`가 수백이고 `overflow_sources`가 비어 있는지, 그 주 승인분이 전부 들어왔는지(신규가 40에서 잘리지 않았는지) 확인한다.
 - [ ] 사람이 판단할 사항(CLAUDE.md 불변식 승격, Product Hunt 판정)을 정한다.
 
-재개에 필요한 코드 상태: 브랜치 `main`, SYDE 수정 `2496747`은 origin에 있다. 미커밋 변경은 두 묶음이다.
-- 코드·문서: `src/collectors/disquiet.ts`, `src/collectors/syde.ts`(넘침 판정), `src/run.ts`, `src/types.ts`, `.github/workflows/collect.yml`, `test/window-overflow.test.ts`, `SPEC.md`, `README.md`, `spec/sources/2-disquiet.md`·`3-syde.md`, `docs/README.md`·`plan.md`·`specs.md`, 이 문서.
-- 데이터: `site/data/2026-10.json`·`latest.json`·`manifest.json`, `state/seen/disquiet.json`.
+재개에 필요한 코드 상태: 브랜치 `main`. 이 작업의 커밋 `2496747`(SYDE), `069286c`(Disquiet 코드·문서), `a5fb6a2`(되찾은 데이터)는 모두 origin에 있다. 이 문서의 이 갱신만 그 뒤에 따로 커밋한다.

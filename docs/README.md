@@ -38,7 +38,7 @@ idea-radar는 신규 앱·웹서비스를 매일 아침 한 페이지에서 훑�
 
 - [docs/work/W-001-main-kill-test.md](work/W-001-main-kill-test.md) — 2주 뒤 kill test와 그 뒤 판단 — 예정
 - [docs/work/W-002-main-ui-usability.md](work/W-002-main-ui-usability.md) — 사이트 사용성·UI 개선(검색·신선도 판정·실행 경계·다크 대비·브랜드 에셋). 구현과 헤드리스 검증은 끝났고 커밋·실기기 확인이 남음 — 진행 중
-- [docs/work/W-003-main-collect-window-overflow.md](work/W-003-main-collect-window-overflow.md) — SYDE 9회 연속 실패 수정, Disquiet 창 넘침(607건 유실) 수정과 되찾기, 창 넘침 빨간불. 되찾기 커밋·다음 승인일(월요일) 관찰이 남음 — 진행 중
+- [docs/work/W-003-main-collect-window-overflow.md](work/W-003-main-collect-window-overflow.md) — SYDE 9회 연속 실패 수정, Disquiet 창 넘침(607건 유실) 수정과 되찾기, 창 넘침 빨간불. 모두 푸시·배포됨, 예약 실행에서의 SYDE 복귀·다음 승인일(10/19) 관찰이 남음 — 진행 중
 
 상태는 `예정`, `진행 중`, `보류`, `완료`를 사용한다. 상세 내용은 작업 문서에서 관리한다.
 
