@@ -31,6 +31,9 @@ export type CollectResult = {
   warnings: string[]
   // 아카이브 항목 밖에서 갱신되는 현재 점수. showhn만 채운다 (SPEC 2.2 예외).
   scores?: Record<string, number>
+  // 읽은 범위 끝까지 새 항목이라 그 너머를 확인하지 못했을 때의 설명 (SPEC 4.5 일곱 번째).
+  // 받은 항목은 멀쩡하므로 소스를 실패로 만들지 않는다 — 버리면 손실만 커진다. run.ts가 빨간불로 올린다.
+  overflow?: string
 }
 
 export type ErrorKind = 'http' | 'parse' | 'timeout'
@@ -49,6 +52,8 @@ export class SourceError extends Error {
 export type CollectContext = {
   seen: ReadonlySet<string>
   seed: boolean
+  // 밀린 분량을 되찾는 깊은 스캔(`--backfill`). 지원하는 컬렉터만 본다(지금은 disquiet).
+  backfill: boolean
 }
 
 export type Collector = {

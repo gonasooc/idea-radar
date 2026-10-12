@@ -41,15 +41,23 @@ const COLLECTORS: Collector[] = [geeknewsShow, disquiet, syde, jocohunt, ilddan,
 //
 // 소스별 근거 (파싱 상한 → 임계값):
 //   geeknews-show  40 → 25   하루 5~12건
-//   disquiet       40 → 30   하루 8~10건이지만 승인이 배치라 20건이 한 번에 들어온다
-//                            (2026-07-26 실측: 20건이 20초 안에 approved). 20보다 위여야 한다
+//   disquiet     ~1000 → 400 주 1회 승인일에 100~170건이 한꺼번에 들어온다(2026-10 실측). 승인일에는
+//                            id 1,500 범위(약 50페이지)를 훑으므로 그게 파싱 상한이다
 //   syde           20 → 15   하루 1~2건
 //   ilddan         24 → 15   하루 1~2건 (web 12 + game 12)
 //   producthunt    50 → 30   하루 8~13건
 //   showhn        ~600 → 400 하루 122~165건
+//
+// disquiet는 2026-10-12까지 상한 40에 임계값 30이었다. 매주 승인일마다 "40 new items (> 30) — check
+// dedupe/seed state"가 떴지만, 실제 원인은 seen이 아니라 1~2페이지만 읽어 생긴 창 넘침이었고, 성공한
+// 실행의 경고라 10주 동안 아무도 보지 못했다(SPEC 4.5 일곱 번째). 창 넘침은 이제 컬렉터의 overflow가
+// 빨간불로 따로 보고하고, 이 표는 원래 목적(seen 유실 검출)만 맡는다. 400은 승인일 최대 실측(173)과
+// 승인일 스캔 상한(~1000) 사이라, seen이 지워져 창 전체가 새것이 되는 경우(~1000)는 여전히 울린다.
+// 컬렉터의 넘침 판정은 상한·순서 깨짐만 보므로 이 경우를 잡지 못한다. 되찾기(--backfill) 실행은 많이
+// 들어오는 게 목적이라 이 검사를 건너뛴다.
 const NEW_COUNT_WARN: Partial<Record<SourceKey, number>> = {
   'geeknews-show': 25,
-  disquiet: 30,
+  disquiet: 400,
   syde: 15,
   ilddan: 15,
   producthunt: 30,
@@ -93,6 +101,7 @@ export type SourceRun = {
   warnings: string[]
   error?: RunError
   scores?: Record<string, number>
+  overflow?: string
 }
 
 type RunFile = {
@@ -158,7 +167,7 @@ export function assertRawItem(key: SourceKey, item: RawItem): void {
   }
 }
 
-async function collectAll(keys: SourceKey[], seed: boolean, dryRun: boolean): Promise<SourceRun[]> {
+async function collectAll(keys: SourceKey[], seed: boolean, dryRun: boolean, backfill: boolean): Promise<SourceRun[]> {
   const runs: SourceRun[] = []
   for (const collector of COLLECTORS) {
     if (!keys.includes(collector.key)) continue
@@ -173,7 +182,7 @@ async function collectAll(keys: SourceKey[], seed: boolean, dryRun: boolean): Pr
       continue
     }
     try {
-      const result = await collector.collect({ seen: seen.ids, seed })
+      const result = await collector.collect({ seen: seen.ids, seed, backfill })
       if (result.parsedCount === 0) throw new SourceError('parse', 'parsedCount is 0')
       for (const item of result.items) assertRawItem(key, item)
       runs.push({
@@ -183,6 +192,7 @@ async function collectAll(keys: SourceKey[], seed: boolean, dryRun: boolean): Pr
         items: dedupeInRun(result.items),
         warnings: result.warnings,
         ...(result.scores ? { scores: result.scores } : {}),
+        ...(result.overflow ? { overflow: result.overflow } : {}),
       })
     } catch (e) {
       runs.push({ key, ok: false, parsedCount: 0, items: [], warnings: [], error: toRunError(e) })
@@ -351,6 +361,7 @@ function report(
   newCounts: Map<SourceKey, number> | undefined,
   manifest: Manifest | undefined,
   seed: boolean,
+  backfill: boolean,
   staleWarnings: string[],
 ): void {
   for (const w of staleWarnings) ghWarning(w)
@@ -359,7 +370,10 @@ function report(
     if (run.ok) {
       const added = newCounts?.get(run.key)
       console.log(`[ok]   ${run.key.padEnd(14)} parsed=${run.parsedCount}${added !== undefined ? ` new=${added}` : ''}`)
-      if (!seed && added !== undefined) {
+      // 창 넘침은 실패가 아니라 유실이다. 받은 항목은 저장됐고, 그 너머를 못 읽었다는 사실만
+      // 빨간불로 올린다 — 경고로 두면 이번처럼 10주 동안 아무도 보지 못한다 (SPEC 4.2·4.5).
+      if (run.overflow) ghWarning(run.overflow)
+      if (!seed && !backfill && added !== undefined) {
         const cap = NEW_COUNT_WARN[run.key]
         if (cap !== undefined && added > cap) ghWarning(`${run.key}: ${added} new items in one run (> ${cap}) — check dedupe/seed state`)
         if (run.key === 'showhn' && added === 0) ghWarning('showhn: 0 new items in a 96h window — merge logic may be treating everything as seen')
@@ -376,9 +390,11 @@ function report(
         .filter(([, s]) => s.consecutiveFailures >= 2 && (s.lastSuccessAt === null || Date.parse(s.lastSuccessAt) < Date.now() - ALERT_STALL_MS))
         .map(([k]) => k)
     : failed
+  const overflowed = runs.filter((r) => r.ok && r.overflow).map((r) => r.key)
   ghOutput('failed_sources', failed.join(','))
   ghOutput('alert_sources', alerts.join(','))
   ghOutput('all_failed', String(attempted.length > 0 && failed.length === attempted.length))
+  ghOutput('overflow_sources', overflowed.join(','))
 }
 
 // 아카이브에서 state/seen/*.json 을 되만든다. 수집을 하지 않으므로 소스에 요청 한 번 안 나간다.
@@ -419,6 +435,9 @@ async function main(): Promise<void> {
   const dryRun = args.includes('--dry-run')
   const seedFlag = args.includes('--seed')
   const replay = args.includes('--replay')
+  // 밀린 분량을 되찾는 깊은 스캔. 지원하는 컬렉터(disquiet)만 바닥 id까지 읽는다. 중간에 실패하면
+  // 아무것도 저장하지 않으므로 같은 명령을 다시 돌리면 된다. 언제 쓰는지는 spec/sources/2-disquiet.md.
+  const backfill = args.includes('--backfill')
   const only = args.find((a) => a.startsWith('--only='))?.slice('--only='.length)
   const keys = only ? (only.split(',').filter((k) => (SOURCE_KEYS as readonly string[]).includes(k)) as SourceKey[]) : [...SOURCE_KEYS]
   if (only && keys.length === 0) {
@@ -442,8 +461,8 @@ async function main(): Promise<void> {
     runAt = new Date().toISOString()
     collectedAt = seedFlag ? new Date(Date.parse(runAt) - 48 * 3600 * 1000).toISOString() : runAt
     seed = seedFlag
-    console.log(`collect start ${runAt}${seed ? ' (seed: collectedAt backdated 48h)' : ''}${dryRun ? ' (dry-run)' : ''}`)
-    runs = await collectAll(keys, seed, dryRun)
+    console.log(`collect start ${runAt}${seed ? ' (seed: collectedAt backdated 48h)' : ''}${backfill ? ' (backfill)' : ''}${dryRun ? ' (dry-run)' : ''}`)
+    runs = await collectAll(keys, seed, dryRun, backfill)
     if (!dryRun) {
       const runFile: RunFile = { runAt, collectedAt, seed, runs }
       await writeFile(RUN_FILE, JSON.stringify(runFile), 'utf8')
@@ -459,7 +478,7 @@ async function main(): Promise<void> {
     }
     // dry-run은 merge를 하지 않으므로 오늘 들어올 항목이 아카이브에 없다. 신선도 경고를
     // 내면 오늘 신규가 있는 소스까지 "N일째 0건"으로 뜬다.
-    report(runs, undefined, undefined, seed, [])
+    report(runs, undefined, undefined, seed, backfill, [])
     return
   }
 
@@ -478,7 +497,7 @@ async function main(): Promise<void> {
   await rebuildLatest(Date.parse(runAt))
   await verifyArchiveIntegrity()
   ghOutput('data_valid', 'true')
-  report(runs, newCounts, manifest, seed, formatStaleNew(stale))
+  report(runs, newCounts, manifest, seed, backfill, formatStaleNew(stale))
 }
 
 // 테스트가 dedupeInRun/nativeId를 import 할 수 있어야 하므로 실행은 엔트리일 때만 한다.
@@ -492,6 +511,7 @@ if (import.meta.main) {
     ghOutput('failed_sources', SOURCE_KEYS.join(','))
     ghOutput('alert_sources', '')
     ghOutput('all_failed', 'true')
+    ghOutput('overflow_sources', '')
   }
   process.exitCode = 0
 }

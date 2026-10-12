@@ -19,7 +19,8 @@
 
 - **런타임 npm 의존성 0개를 유지한다.** `package.json`의 `dependencies`는 비어 있어야 한다. Atom도 정규식으로 뽑는다. 복귀 조건은 "XML 파싱이 실제로 깨지면 `fast-xml-parser` 1개까지 허용"이다 ([SPEC.md](../SPEC.md) 8절).
 - **지울 수 있는 TypeScript 문법만 쓴다.** `enum`, `namespace`, 파라미터 프로퍼티(`constructor(private x)`)를 쓰지 않는다. `tsconfig.json`의 `erasableSyntaxOnly`가 이를 잡지만 타입 스트리핑 자체는 타입 검사를 하지 않으므로 CI에서 `tsc --noEmit`을 돌린다. 이 문법이 하나 들어가면 `run.ts` 최상단 import에서 로드 시점에 죽어 그날 7개 소스가 통째로 날아간다.
-- **컬렉터는 `{ parsedCount, items, warnings, scores? }`를 반환하고 dedupe는 하지 않는다.** dedupe는 `run.ts`가 한다. 파싱 직후 `parsedCount === 0`이면 throw 하고, 신규 0건은 정상으로 둔다 ([SPEC.md](../SPEC.md) 4.3).
+- **컬렉터는 `{ parsedCount, items, warnings, scores?, overflow? }`를 반환하고 dedupe는 하지 않는다.** dedupe는 `run.ts`가 한다. 파싱 직후 `parsedCount === 0`이면 throw 하고, 신규 0건은 정상으로 둔다 ([SPEC.md](../SPEC.md) 4.3).
+- **고정 범위만 읽는 컬렉터는 창 넘침을 판정해 `overflow`로 돌려준다.** 읽은 범위 끝까지 새 항목이면 그 너머를 못 읽은 것이다. 받은 항목은 저장하고 소스를 실패로 만들지 않으며, report 스텝이 빨간불로 올린다. 지금 판정이 있는 소스는 disquiet·syde다 ([SPEC.md](../SPEC.md) 4.5 일곱 번째).
 - **HTTP 요청은 [src/http.ts](../src/http.ts)를 거친다.** 브라우저 UA 고정, 기본 타임아웃 15초, 재시도(기본 1회, 소스별 조정), 요청 간 300ms 대기가 여기에 있다. 재시도 대상 상태 코드는 403·429·500·502·503·504다.
 - **문자열 처리는 결정론적인 것만 쓴다.** 허용되는 것은 [src/text.ts](../src/text.ts)의 태그 제거·엔티티 디코드·공백 정규화·300자 절단뿐이다. LLM 요약·분류·태깅·키워드 필터를 추가하지 않는다 ([CLAUDE.md](../CLAUDE.md)).
 - **날짜는 [src/kst.ts](../src/kst.ts)만 쓴다.** `Intl.DateTimeFormat`에 `timeZone: 'Asia/Seoul'`을 준 단일 진실 공급원이다. 샤드 키와 `collectedDate`가 전부 여기서 나온다.
@@ -60,6 +61,7 @@ npm ci && npx tsc --noEmit && node --test 'test/*.test.ts' && node src/verify.ts
 | `--seed` | `collectedAt`을 48시간 백데이트해 "오늘 신규"에 띄우지 않는다. **빈 아카이브에서만 쓴다** |
 | `--rebuild-seen` | `state/seen/*.json`을 아카이브에서 되만든다. 소스에 요청이 나가지 않는다 |
 | `--replay` | 직전 실행 결과 파일을 다시 병합한다. 워크플로의 push 재시도 루프가 쓴다 |
+| `--backfill` | 밀린 분량을 되찾는 깊은 스캔. 지금은 disquiet만 지원해 바닥 id(`FLOOR_ID`)까지 읽는다. 중간에 실패하면 아무것도 저장하지 않으므로 다시 돌리면 된다. 되찾은 항목은 그 실행 시각으로 들어간다 ([spec/sources/2-disquiet.md](../spec/sources/2-disquiet.md)) |
 
 **seen 인덱스를 잃었을 때의 복구는 `--rebuild-seen`이지 `--seed`가 아니다.** seed는 백데이트 때문에 append 순서 단언을 깨뜨려 그 뒤로 아무것도 커밋되지 않는 상태를 만든다 ([SPEC.md](../SPEC.md) 3절).
 

@@ -37,6 +37,14 @@ function scanFallbackRows(flight: string): ShowcaseRow[] {
   return [...byId.values()]
 }
 
+// 목록(bumped_at 순 20건)이 전부 처음 보는 것이면 창이 이미 넘친 것이다 — 그 사이 밀려난 항목은
+// 다시 읽을 길이 없다(spec 3 "일일 물량"). seen이 비어 있으면(최초 실행) 전부 새것이 당연하므로 보지 않는다.
+export function sydeOverflow(ids: string[], seen: ReadonlySet<string>): string | undefined {
+  if (seen.size === 0 || ids.length === 0) return undefined
+  if (ids.some((id) => seen.has(id))) return undefined
+  return `syde: all ${ids.length} listed showcases are new — the list window overflowed, earlier ones may be lost`
+}
+
 function normalizeExternal(v: unknown): string | undefined {
   if (typeof v !== 'string') return undefined
   const s = v.trim()
@@ -123,6 +131,7 @@ export const syde: Collector = {
       }
       items.push(item)
     }
-    return { parsedCount: rows.length, items, warnings }
+    const overflow = sydeOverflow(rows.map((r) => r.id), ctx.seen)
+    return { parsedCount: rows.length, items, warnings, ...(overflow ? { overflow } : {}) }
   },
 }

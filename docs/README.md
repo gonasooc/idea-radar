@@ -4,7 +4,7 @@
 
 idea-radar는 신규 앱·웹서비스를 매일 아침 한 페이지에서 훑고 나중에 검색해 다시 찾기 위한 개인용 아카이브다. GitHub Actions가 하루 2회 소스 7곳을 수집해 JSON으로 커밋하고, 같은 저장소의 GitHub Pages가 그것을 정적 페이지로 보여준다. 서버·DB 없이 저장소 하나로 돌아간다.
 
-2026-07-29 시딩 이후 하루 2회 수집이 계속 돌고 있다. 2026-09-22 기준 `site/data/manifest.json`의 7개 소스가 모두 `consecutiveFailures: 0`이고 월 샤드는 2026-07·08·09 세 달치가 있다. 구현은 [TASKS.md](../TASKS.md) 0~7절까지 끝났고, 남은 것은 8절 kill test 하나다.
+2026-07-29 시딩 이후 하루 2회 수집이 계속 돌고 있다. 구현은 [TASKS.md](../TASKS.md) 0~7절까지 끝났고, 남은 것은 8절 kill test 하나다. 2026-10-12에 SYDE 응답 형식 변경으로 9회 연속 실패(10/9부터 빨간불)한 것을 고쳤고, 조사 중에 Disquiet가 매주 승인분의 앞 40건만 수집해 7월 이후 607건을 잃어 온 것을 찾아 고쳤다 — [docs/work/W-003-main-collect-window-overflow.md](work/W-003-main-collect-window-overflow.md).
 
 ## 이 프로젝트의 정본은 SPEC.md다
 
@@ -38,6 +38,7 @@ idea-radar는 신규 앱·웹서비스를 매일 아침 한 페이지에서 훑�
 
 - [docs/work/W-001-main-kill-test.md](work/W-001-main-kill-test.md) — 2주 뒤 kill test와 그 뒤 판단 — 예정
 - [docs/work/W-002-main-ui-usability.md](work/W-002-main-ui-usability.md) — 사이트 사용성·UI 개선(검색·신선도 판정·실행 경계·다크 대비·브랜드 에셋). 구현과 헤드리스 검증은 끝났고 커밋·실기기 확인이 남음 — 진행 중
+- [docs/work/W-003-main-collect-window-overflow.md](work/W-003-main-collect-window-overflow.md) — SYDE 9회 연속 실패 수정, Disquiet 창 넘침(607건 유실) 수정과 되찾기, 창 넘침 빨간불. 되찾기 커밋·다음 승인일(월요일) 관찰이 남음 — 진행 중
 
 상태는 `예정`, `진행 중`, `보류`, `완료`를 사용한다. 상세 내용은 작업 문서에서 관리한다.
 

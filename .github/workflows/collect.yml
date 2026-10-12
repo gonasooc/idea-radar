@@ -108,15 +108,27 @@ jobs:
           FAILED="${{ steps.collect.outputs.failed_sources }}"
           ALERT="${{ steps.collect.outputs.alert_sources }}"
           ALL="${{ steps.collect.outputs.all_failed }}"
+          OVERFLOW="${{ steps.collect.outputs.overflow_sources }}"
+          # 사유를 전부 찍고 마지막에 한 번 끝낸다. 첫 분기에서 exit 하면 겹친 다른 사유가 로그에서 사라진다.
+          STATUS=0
           if [ -n "$FAILED" ]; then
             echo "failed this run: $FAILED"
           fi
           if [ "$ALL" = "true" ]; then
             echo "::error::all sources failed"
-            exit 1
+            STATUS=1
           fi
           if [ -n "$ALERT" ]; then
             echo "::error::sources failing 2+ consecutive runs: $ALERT"
-            exit 1
+            STATUS=1
           fi
-          echo "ok"
+          # 창 넘침: 읽은 범위 끝까지 새 항목이라 그 너머를 못 읽었다. 수집은 성공했지만 유실이 생겼을 수
+          # 있으니 1회성이어도 빨간불이다 — Disquiet는 이걸 경고로만 내다가 10주간 607건을 잃었다 (SPEC 4.5).
+          if [ -n "$OVERFLOW" ]; then
+            echo "::error::fetch window overflowed, items beyond it may be lost: $OVERFLOW"
+            STATUS=1
+          fi
+          if [ "$STATUS" -eq 0 ]; then
+            echo "ok"
+          fi
+          exit "$STATUS"
