@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-11T23:07:29.882Z",
+  "updatedAt": "2026-10-12T04:55:33.924Z",
   "lastCollectedDate": "2026-10-12",
   "months": [
     {
@@ -12,7 +12,7 @@
         "ilddan": 3,
         "producthunt": 394,
         "jocohunt": 23,
-        "disquiet": 81,
+        "disquiet": 688,
         "showhn": 1570
       }
     },
@@ -64,8 +64,8 @@
       "lastError": null
     },
     "disquiet": {
-      "lastSuccessAt": "2026-10-11T23:07:29.882Z",
-      "lastRawCount": 40,
+      "lastSuccessAt": "2026-10-12T04:55:33.924Z",
+      "lastRawCount": 1060,
       "consecutiveFailures": 0,
       "lastError": null
     },
