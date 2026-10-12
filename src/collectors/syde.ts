@@ -74,12 +74,11 @@ export const syde: Collector = {
     if (i !== -1) {
       const raw = sliceBalanced(flight, i + KEY.length)
       if (!raw) throw new SourceError('parse', 'initialShowcases brace matching failed')
-      const container = JSON.parse(raw) as { showcases?: unknown; count?: unknown }
+      // showcases만 쓴다. count·currentPage 같은 총계·페이지 메타는 2026-10-12에 예고 없이 사라졌고,
+      // 그걸 단언하던 검사가 멀쩡한 목록을 9회 연속 버렸다(spec 3 healthCheck 7, 함정 14).
+      const container = JSON.parse(raw) as { showcases?: unknown }
       if (!Array.isArray(container.showcases) || container.showcases.length < 10) {
         throw new SourceError('parse', `showcases length ${Array.isArray(container.showcases) ? container.showcases.length : 'n/a'} < 10`)
-      }
-      if (typeof container.count !== 'number' || container.count <= 0) {
-        throw new SourceError('parse', 'container.count missing or non-positive')
       }
       rows = container.showcases as ShowcaseRow[]
       if (rows.length !== 20) warnings.push(`syde: list size ${rows.length} !== 20 — page size changed?`)

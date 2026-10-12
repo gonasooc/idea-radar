@@ -3,10 +3,17 @@
 > 이 문서는 2026-07-29에 **실제 HTTP 응답을 받아** 작성된 수집 계약이다.
 > 추측이 아니라 실측이며, `sampleItem`은 그날 받은 진짜 데이터다.
 > 사이트가 바뀌면 이 문서를 먼저 고치고 코드를 고친다.
+>
+> **2026-10-12 갱신 — 컨테이너 형식이 바뀌었다.** 2026-10-07 07:41Z 성공과 23:47Z 실패 사이에
+> `initialShowcases`에서 `count`·`currentPage`가 빠지고 `nextCursor`가 생겼다(커서 방식). 목록 20건과
+> 행 필드는 그대로였는데, 데이터로 쓰지도 않는 `count`를 검사하던 healthCheck 7번이 9회 연속 실패시켰다
+> (마지막 성공에서 40시간이 지난 10/8 23:55Z부터 Actions 빨간불). 7번은 삭제했다 — 아래 healthCheck와 함정 14.
 
 ## 일일 물량
 
 평균 2건/일. 실측(2026-07-29 03:40 UTC 호출): 최근 24시간 created_at 기준 3건, 최근 7일 15건(=2.1건/일), 전체 누적 count=148. 리스트 1회 응답에 항상 20건이 오므로 하루 1회 수집이면 신규분을 놓칠 여유가 매우 크다(20건 창 ≒ 10일치).
+
+**2026-10-12 실측: 20건 창이 약 4일로 짧아졌다.** 목록은 bumped_at 순이라 새 글뿐 아니라 끌어올림도 창을 민다. 그날 목록 20건의 bumped_at이 10/6 08:14Z ~ 10/10 07:34Z(평일 하루 5건 안팎)였다. 하루 2회 수집이면 여유가 충분하지만, **수집이 4일쯤 멈추면 그 사이 신규가 창 밖으로 밀려 영구히 빠진다.** 목록 20건이 전부 신규면 이미 넘친 것이다.
 
 ## 요청
 
@@ -35,7 +42,7 @@ GET https://syde.kr/showcase/{encodeURIComponent(slug)}  — 같은 헤더 사�
    while ((m = RE.exec(html)) !== null) flight += JSON.parse(m[1]);
    - 캡처그룹 m[1] 은 JS 문자열 리터럴(따옴표 포함)이다. JSON.parse 로 언이스케이프하면 평문 JSON 조각이 나온다. 언이스케이프는 이 1회면 충분하다(2중 언이스케이프 하지 말 것).
    - `[1,` 형태만 매칭한다. `push([0])` 같은 다른 형태는 데이터가 없다.
-   - 실측: 18개 청크, 이어붙인 flight 길이 123,629자.
+   - 실측: 18개 청크, 이어붙인 flight 길이 123,629자. (2026-10-12: 4개 청크, 114,932자, 본문 299,552바이트 — 재배포로 청크 수는 언제든 바뀐다.)
 
 3. 컨테이너 키의 시작 위치를 찾는다:
    const KEY = '"initialShowcases":';
@@ -63,10 +70,12 @@ GET https://syde.kr/showcase/{encodeURIComponent(slug)}  — 같은 헤더 사�
 
 5. JSON.parse 한다.
    const container = JSON.parse(sliceBalanced(flight, i + KEY.length));
-   실측 최상위 키: { showcases, count, mentionedProfiles, currentPage }
-   - container.showcases : 아이템 배열 (실측 길이 20, 항상 20으로 보임)
-   - container.count     : 전체 누적 개수 (실측 148) — 페이지네이션용이 아니라 총계 표시용
-   - container.currentPage : 실측 항상 1
+   실측 최상위 키: { showcases, count, mentionedProfiles, currentPage } (2026-07-29)
+                → { showcases, mentionedProfiles, nextCursor } (2026-10-12)
+   - container.showcases : 아이템 배열 (실측 길이 20, 항상 20으로 보임). **이것만 쓴다.**
+   - container.nextCursor : 다음 묶음의 커서. 실측 "2026-10-06T08:14:11.380391+00:00" = 목록 마지막 행의 bumped_at. 쓰지 않는다(함정 14).
+   - (삭제됨) container.count — 전체 누적 개수(실측 148)였다. 총계 표시용이라 데이터로 쓴 적이 없다.
+   - (삭제됨) container.currentPage — 실측 항상 1이었다.
 
 6. const rows = container.showcases; — 이 배열이 아이템 소스다. 각 원소를 fieldMapping 대로 공통 스키마로 변환한다.
 
@@ -145,7 +154,7 @@ GET https://syde.kr/showcase/{encodeURIComponent(slug)}  — 같은 헤더 사�
 4. flight.indexOf('"initialShowcases":') !== -1.
 5. sliceBalanced 결과가 null 이 아니고 JSON.parse 가 예외 없이 성공한다.
 6. Array.isArray(container.showcases) && container.showcases.length >= 10 (실측 20). **0건이면 무조건 실패로 간주** — 정상 상태에서 리스트가 비는 경우는 없다.
-7. typeof container.count === "number" && container.count > 0 (실측 148).
+7. (2026-10-12 삭제) ~~typeof container.count === "number" && container.count > 0~~. SYDE가 `count`를 없애자 목록은 멀쩡한데 소스 전체가 실패했다. 데이터로 쓰지 않는 필드를 단언하면 사이트의 무관한 변경이 수집 중단이 된다. 잘못된 객체를 집었는지는 6·8·9·10번이 행 단위로 이미 잡는다. 번호는 다른 문서가 6번을 가리키므로 비워 둔다.
 8. 모든 아이템이 다음을 만족:
    - /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(row.id)   (실측 20/20 통과)
    - typeof row.name === "string" && row.name.trim().length > 0
@@ -218,3 +227,5 @@ externalUrl 채우기용 상세 요청 실패는 무시하고 진행하되, 리�
 12. **브라우저 User-Agent 필수.** Vercel 앞단이 기본 curl/node UA 를 다르게 취급할 수 있다. GitHub Actions 러너에서도 위 UA 를 그대로 보낼 것.
 
 13. **하루 1~2건 소스라 "신규 0건"이 정상일 수 있다.** 0건을 즉시 오류로 처리하면 오탐이 난다. 다만 리스트 자체가 0건인 것은 무조건 오류다(healthCheck 6번). 이 둘을 구분할 것.
+
+14. **총계·페이지 메타는 예고 없이 바뀐다 — 검사하지 말 것.** 2026-10-12 실측에서 `count`·`currentPage`가 사라지고 `nextCursor`(목록 마지막 행의 bumped_at)가 생겼다. 쓰지 않는 필드를 healthCheck에 넣었다가 4.5일간 SYDE 수집이 통째로 멈췄다(7번 삭제 경위). `nextCursor`로 다음 묶음을 받는 길이 생겼을 수 있지만, 그걸 부르는 방법은 공개된 페이지·피드가 아니라 클라이언트 번들 쪽이라 찾지 않는다(CLAUDE.md "새 소스" 규칙). 창이 넘칠 위험은 수집을 오래 멈추지 않는 것으로 막는다.
