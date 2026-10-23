@@ -1,19 +1,19 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-22T22:43:40.894Z",
+  "updatedAt": "2026-10-23T06:27:26.752Z",
   "lastCollectedDate": "2026-10-23",
   "months": [
     {
       "key": "2026-10",
       "hasShowhn": true,
       "counts": {
-        "geeknews-show": 257,
-        "syde": 50,
+        "geeknews-show": 263,
+        "syde": 51,
         "ilddan": 3,
         "producthunt": 722,
-        "jocohunt": 50,
+        "jocohunt": 51,
         "disquiet": 862,
-        "showhn": 3186
+        "showhn": 3208
       }
     },
     {
@@ -58,44 +58,44 @@
   ],
   "sources": {
     "geeknews-show": {
-      "lastSuccessAt": "2026-10-22T22:43:40.894Z",
+      "lastSuccessAt": "2026-10-23T06:27:26.752Z",
       "lastRawCount": 40,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "disquiet": {
-      "lastSuccessAt": "2026-10-22T22:43:40.894Z",
+      "lastSuccessAt": "2026-10-23T06:27:26.752Z",
       "lastRawCount": 40,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "syde": {
-      "lastSuccessAt": "2026-10-22T22:43:40.894Z",
+      "lastSuccessAt": "2026-10-23T06:27:26.752Z",
       "lastRawCount": 20,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "jocohunt": {
-      "lastSuccessAt": "2026-10-22T22:43:40.894Z",
-      "lastRawCount": 314,
+      "lastSuccessAt": "2026-10-23T06:27:26.752Z",
+      "lastRawCount": 315,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "ilddan": {
-      "lastSuccessAt": "2026-10-22T22:43:40.894Z",
+      "lastSuccessAt": "2026-10-23T06:27:26.752Z",
       "lastRawCount": 24,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "producthunt": {
-      "lastSuccessAt": "2026-10-22T22:43:40.894Z",
+      "lastSuccessAt": "2026-10-23T06:27:26.752Z",
       "lastRawCount": 50,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "showhn": {
-      "lastSuccessAt": "2026-10-22T22:43:40.894Z",
-      "lastRawCount": 633,
+      "lastSuccessAt": "2026-10-23T06:27:26.752Z",
+      "lastRawCount": 630,
       "consecutiveFailures": 0,
       "lastError": null
     }
