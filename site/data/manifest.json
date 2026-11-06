@@ -1,19 +1,19 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-11-06T08:28:58.292Z",
-  "lastCollectedDate": "2026-11-06",
+  "updatedAt": "2026-11-06T23:47:56.028Z",
+  "lastCollectedDate": "2026-11-07",
   "months": [
     {
       "key": "2026-11",
       "hasShowhn": true,
       "counts": {
-        "geeknews-show": 95,
-        "syde": 15,
+        "geeknews-show": 99,
+        "syde": 17,
         "jocohunt": 14,
-        "producthunt": 195,
+        "producthunt": 200,
         "disquiet": 240,
         "ilddan": 7,
-        "showhn": 909
+        "showhn": 999
       }
     },
     {
@@ -71,44 +71,44 @@
   ],
   "sources": {
     "geeknews-show": {
-      "lastSuccessAt": "2026-11-06T08:28:58.292Z",
+      "lastSuccessAt": "2026-11-06T23:47:56.028Z",
       "lastRawCount": 40,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "disquiet": {
-      "lastSuccessAt": "2026-11-06T08:28:58.292Z",
+      "lastSuccessAt": "2026-11-06T23:47:56.028Z",
       "lastRawCount": 40,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "syde": {
-      "lastSuccessAt": "2026-11-06T08:28:58.292Z",
+      "lastSuccessAt": "2026-11-06T23:47:56.028Z",
       "lastRawCount": 20,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "jocohunt": {
-      "lastSuccessAt": "2026-11-06T08:28:58.292Z",
+      "lastSuccessAt": "2026-11-06T23:47:56.028Z",
       "lastRawCount": 342,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "ilddan": {
-      "lastSuccessAt": "2026-11-06T08:28:58.292Z",
+      "lastSuccessAt": "2026-11-06T23:47:56.028Z",
       "lastRawCount": 24,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "producthunt": {
-      "lastSuccessAt": "2026-11-06T08:28:58.292Z",
+      "lastSuccessAt": "2026-11-06T23:47:56.028Z",
       "lastRawCount": 50,
       "consecutiveFailures": 0,
       "lastError": null
     },
     "showhn": {
-      "lastSuccessAt": "2026-11-06T08:28:58.292Z",
-      "lastRawCount": 684,
+      "lastSuccessAt": "2026-11-06T23:47:56.028Z",
+      "lastRawCount": 640,
       "consecutiveFailures": 0,
       "lastError": null
     }
